@@ -1,0 +1,46 @@
+C++学习笔记
+
+C/C++入门到进阶的书籍推荐
+https://zhuanlan.zhihu.com/p/355103627
+
+BOTManJL
+腾讯员工的C++总结：
+https://bot-man-jl.github.io/articles/
+
+重点推荐下文（以及该文章内引用的其他文章）：
+《再谈 “回调 vs 接口” 设计》
+https://bot-man-jl.github.io/articles/?post=2019/Callback-vs-Interface-Explained
+
+重述《Effective C++》
+https://www.zhihu.com/column/c_1327634149453242368
+
+《Effective Modern C++》笔记
+https://www.zhihu.com/column/c_1349336977712627712
+
+《More Effective C++》读书笔记
+https://zhuanlan.zhihu.com/p/368342605
+
+现代C++语言（C++11/14/17）特性总结和使用建议
+http://3ms.huawei.com/km/groups/2842623/blogs/details/5813939?l=zh-cn
+
+软件教练说：华为周迪之的博客
+http://3ms.huawei.com/km/blogs/2006116/list
+
+C/C++常识：华为张瑞的博客
+http://3ms.huawei.com/km/blogs/10361/list
+
+华为C++语言通用编程规范V3.3
+http://rnd-isourceb.huawei.com/coding-guide/cpp-coding-style-guide/tree/master/huawei-cpp-coding-style-guide.md
+
+华为C&C++语言安全编程规范V3.2
+http://rnd-isourceb.huawei.com/coding-guide/c-cpp-secure-coding-standard/tree/master/c-cpp-secure-coding-standard.md
+
+C++模板
+https://vinkle.top/categories/
+
+C++设计模式系列文章
+https://zhuanlan.zhihu.com/p/94877789
+https://segmentfault.com/a/1190000010706695
+
+C++ 单例模式总结与剖析
+http://3ms.huawei.com/km/blogs/details/9050699?l=zh-cn
