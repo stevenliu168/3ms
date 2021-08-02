@@ -1,0 +1,117 @@
+"开-闭" 原则（Open-Closed Principle）是面向对象的可复用设计的基石,“软件实体应当对扩展开放，对修改关闭”。通俗一点讲：软件系统中包含的各种组件，例如模块（Modules）、类（Classes）以及功能（Functions）等，应该在不修改现有代码的基础上，引入新功能。
+
+比如：一个网络模块，原来只有服务端功能，而现在要加入客户端功能，那么应当在不用修改服务端功能代码的前提下，就能够增加客户端功能的实现代码，这要求在设计之初，就应当将服务端和客户端分开，公共部分抽象出来。
+
+如何实现开闭原则
+实现开闭原则的关键就在于“抽象”。把系统的所有可能的行为抽象成一个抽象底层，这个抽象底层规定出所有的具体实现必须提供的方法的特征。作为系统设计的抽象层，要预见所有可能的扩展，从而使得在任何扩展情况下，系统的抽象底层不需修改；同时，由于可以从抽象底层导出一个或多个新的具体实现，可以改变系统的行为，因此系统设计对扩展是开放的。
+
+我们在软件开发的过程中一直都提倡需求导向，这就要求在设计时非常清楚地了解用户需求，判断需求中包含的可能的变化，从而明确在什么情况下使用开闭原则。
+
+关于系统可变的部分，还有一个更具体的原则是对可变性的封装原则（Principle of Encapsulation of Variation, EVP），它从软件工程实现的角度对开闭原则进行了进一步的解释。EVP要求在做系统设计的时候，对系统所有可能发生变化的部分进行评估和分类，每一个可变的因素都单独进行封装。
+
+
+
+"对可变性的封装原则"意味着两点：
+（1）一种可变性不应当散落在代码的很多角落里，而应当被封装到一个对象里面。同一种可变性的不同表象意味着同一个继承等级结构中的具体子类，因此，我们可以期待在设计模式中看到继承关系。继承应当被看做是封装变化的方法，而不应当被认为是从一般的对象生成特殊的对象的方法。
+
+（2）一种可变性不应当与另一种可变性混合在一起。
+
+开闭原则的相对性
+软件系统的构建是一个需要不断重构的过程，在这个过程中，模块的功能抽象，模块与模块间的关系，都不会从一开始就非常清晰明了，所以构建100%满足开闭原则的软件系统是相当困难的，这就是开闭原则的相对性。但在设计过程中，通过对模块功能的抽象（接口定义），模块之间的关系的抽象（通过接口调用），抽象与实现的分离（面向接口的程序设计）等，可以尽量接近满足开闭原则。
+
+对于软件系统的功能扩展，可以通过继承、重载或者委托等手段实现。以接口为例，它对修改就是封闭的，而对具体的实现是开放的，我们可根据实际的需要提供不同的实现，所以接口是符合开闭原则的。
+
+开闭原则能够带来什么好处
+如果一个软件系统符合开闭原则的，那么从软件工程的角度来看，它至少具有这样的好处：
+
+（1）可复用性好
+
+可以在软件完成以后，仍然可以对软件进行扩展，加入新的功能，非常灵活。因此，这个软件系统就可以通过不断地增加新的组件，来满足不断变化的需求。
+
+（2）可维护性好
+
+由于对于已有的软件系统的组件，特别是它的抽象底层不去修改，因此，我们不用担心软件系统中原有组件的稳定性，这就使变化中的软件系统有一定的稳定性和延续性。
+
+
+Go 编程示例(开闭原则)
+package main
+type Cat struct {
+        Name string
+}
+func (c Cat) Legs() int { return 4 }
+func (c Cat) PrintLegs() {
+        fmt.Printf("I have %d legs\n", c.Legs())
+}
+
+type OctoCat struct {
+        Cat
+}
+func (o OctoCat) Legs() int { return 5 }
+
+func main() {
+        var octo OctoCat         fmt.Println(octo.Legs()) // 5
+        octo.PrintLegs()         // I have 4 legs
+}
+在上例中，type Cat有Legs方法来计算它有几条腿。我们嵌入Cat到一个新的type OctoCat中，并声明Octocats有五条腿。然而，尽管OctoCat定义了自己有五条腿，但是PrintLegs方法被调用时会返回4。这是因为PrintLegs在type Cat中定义，它会将Cat做为它的接收者，因此它使用Cat的Legs方法。Cat并不了解已嵌入的type，因此它的嵌入方法不能被修改。由此，我们可以说Go语言的types对扩展开放，但是对修改是关闭的。
+
+C++ 编程示例(开闭原则)
+public abstract class Shape {
+    public abstract void Draw();
+}
+
+public class Circle : Shape {
+    public override void Draw() {
+       // draw circle on GUI
+    }
+}
+
+public class Square : Shape {
+    public override void Draw() {
+       // draw square on GUI
+    }
+}
+
+public class Client {
+    public void DrawAllShapes(List&lt;Shape&gt; shapes) {
+        foreach (var shape in shapes) {
+           shape.Draw();
+        }
+    }
+}
+上例创建了一个 Shape 抽象类，这个抽象类包含一个纯虚函数 Draw,而 Circle 和 Square 都衍生自 Shape 类。在这里如想扩展 DrawAllShapes 函数的行为来绘制一个新的图形种类,所需做的就是增加一个从 Shape 类衍生的子类,而DrawAllShapes 函数无需进行修改。因此DrawAllShapes 符合开放封闭原则，它的行为可以不通过对其修改而扩展。
+
+Java 编程示例(开闭原则)
+interface IClient {
+      public String action();
+}
+
+class Server1 implements IClient {
+      public String action() {
+          return "I'm server 1 to provide service";
+      }
+}
+
+class Server2 implements IClient {
+      public String action() {
+          return "I'm server 2 to provide service";
+      }
+}
+
+class Client {
+      public void doing(IClient clientInf) {
+          System.out.println("Start to call server");
+          System.out.println(clientInf.action());
+      }
+}
+
+void main(String[] args) {
+      Client client = new Client();
+      client.doing(new Server1());
+      client.doing(new Server2());
+}
+定义多个服务类实现 IClient 接口。定义客户类，接口类作为客户类函数的参数。实例化服务类和客户类，把不同的服务类作为客户类的函数参数。
+
+开闭原则与其它原则的关系
+开闭原则具有理想主义的色彩，它是面向对象设计的终极目标。因此，针对开闭原则的实现方法，一直都有面向对象设计的大师费尽心机，研究开闭原则的实现方式。其它原则和方法如：里氏代换原则（LSP）、依赖倒转原则（DIP）、接口隔离原则（ISP）以及抽象类（Abstract Class）、接口(Interace)等等，都可以看作是开闭原则的实现方法。
+
+开闭原则是面向对象设计的核心,需要程序设计师更专注于将抽象技术应用到程序中那些趋于变化的部分.
