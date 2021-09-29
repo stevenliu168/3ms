@@ -1,0 +1,78 @@
+http://3ms.huawei.com/km/blogs/details/43606
+
+http://www.cnblogs.com/Neoh/archive/2011/03/17/1987398.html
+
+
+
+此篇随笔即“读Clean Code(代码整洁之道)摘录(三)”
+
+ 
+
+不得不承认Robert C. Martin的书写的太牛逼，改变了很多写代码思想上的东西。老是摘录太没意思了，所以，这次换个方式总结下感受。
+
+代码整洁之道讲了很多原则， 但我印象最深刻的是下面这几条有趣的原则[换种表达方式，不是原文]：
+
+　　1、Do not call me because I'll call you at five.
+
+　　函数的分层调用原则一定要明确。我调用你，你调用我，这样的三角恋关系会令所有人迷惑。
+
+　　每次让你迷路的地方，往往是那些设计巧妙的立交桥。他们纵横交错，遮挡了你的视线。没有分层的函数就相当于互相交错的立交桥，在搞清楚他们干什么之前还得记住他们谁在调用谁。
+
+　　以我自己的新写代码举例：
+
+　　/**
+     * 找出指定文件夹内所有名字包含指定字符串的文件夹
+     * @param int $userId 用户的id
+     * @param int $directoryId 文件夹的id
+     * @param String $name 包含的名字字符串
+     * @return Array 文件夹的集合
+     */
+    function findDirectorysInOneDirectory($userId, $directoryId, $name)
+    {
+        $allUserDirs = $this->findAllUserDirectorys($userId);//找出用户所有的文件夹
+        $allUserFiles = $this->findAllUserFiles($userId);//找出用户所有的文件
+        $possibleDirs = $this->filterDirectorysByName($allUserDirs, $name);//过滤出所有符合名字条件的文件夹
+        $possibleDirs = $this->filterDirectorysByAncestor($allUserDirs, $allUserFiles, $possibleDirs, $directoryId);//过滤出所有在指定文件夹下的文件夹
+        $result = $this->reformDirctoryData($possibleDirs);//重组数据
+        return $result;
+    }
+
+　　记$this->findAllUserDirectorys($userId)为function2,记调用function2的函数function findDirectorysInOneDirectory($userId, $directoryId, $name)为function1
+
+　　假设function2也处于当前层次，即与调用它的函数 function1处于同一个层次，那么就可能会有函数调用他们。一旦需要修改function2，就会造成混乱。我们将function2更改了，适应了需求，但原来调用它的function1肯定就会产生错误的结果。我们还得去处理。
+
+　　假如两个函数都被上一层所需要，也就是这两个函数都必须在同一个层次，也就是说这两个函数有重复的部分代码。我们应该将这部分重复的代码提取出来，形成新的函数functionSon，然后让function1和function2都调用functionSon。一旦function2的需求变化，我们只需要处理function2就行了，添加一点东西或者干脆重写function2。这样做满足了变化的需求而不会影响function1
+
+　　2、You are short, but you are clear and as powerful as a tall.
+
+　　函数应该尽量短小，因为短小的函数借助它下一层级的函数同样可以令自己变得非常强大。其实将函数的数量变多，并没有增加代码量，而是减少了代码量。因为这个过程可能解决了许多重复问题。而且也将你的思路整理的非常清晰。
+
+　　上面的例子只有6行代码，却完成了一个非常复杂的工作。后面的注释都是多余的，去掉之后代码将更加简洁。(这是我在写函数之前整理的思路，帮自己记住应该干什么用的，没有删掉)试想，要是没有将这些不该属于这个处理层次的代码提取成一个函数，这个函数不就是一条又臭又长的裹脚布了吗？
+
+　　3、You are hansome/beauty, just because you are tidy and clean.
+
+　　短小精悍，步骤清晰，不拖泥带水。
+
+　　整洁的代码令人一看就明白，这不但因为函数的名字和各个操作具有自解释的作用，更因为短小的代码将整件事的信息量全部涵盖。
+
+　　上面的例子，没有后面的注释，你不能理解它究竟做了什么吗？
+
+　　4、I love you forever, because I know you are loyal.
+
+　　权责明确，函数即不多做事也不少做事。返回结果的函数不会去改变状态，改变状态的函数也不会返回结果。
+
+　　因为一旦你违反职责单一原则，无异于大声宣布我在脚踏两条船。
+
+　　试想，上面的代码再来一句：$UserFunction->markDirs($possibleDirs);改变了文件夹的状态，或许这是下一步应该进行的操作，但是这无疑违反了职责单一原则。开发的其他程序员看到看到这个函数已经实现，自然是调用更方便。但是他万万不会想到这脚踏两条船的函数在返回他需要的结果时悄悄改变了文件夹的状态。最后出现的错误将让他调试到抓狂！就算这个函数将名字改为findDirectorysInOneDirectoryAndMarkDirs也不太合适。难道你不认为将这个函数分离成两个函数然后分别调用更加方便吗？
+
+　　5、You are so speal, and I can not lose you.
+
+　　函数代码不重复，不要重复他人，更不要重复自己。
+
+　　重复是软件开发罪恶的根源。
+
+　　复制黏贴是好用，但是带来的后果却是可怕的。一旦你需要更改代码的时候，你会发现，你要重复劳动的地方往往是你偷懒的地方。Bob大叔的话说得好，每当你想复制的时候就想想是不是应该提取成函数了。
+
+写的好的代码真的很美，看到她的时候不得不承认“上帝”的创造的确无可挑剔。
+
+LookingFor::find('year>=1991 and year<=1995 and sex='女' and money>4000')->get(1);"
