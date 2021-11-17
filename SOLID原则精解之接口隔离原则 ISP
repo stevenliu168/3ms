@@ -1,0 +1,320 @@
+SOLID原则精解之接口隔离原则 ISP
+日期：2020-06-22 10:15浏览：4658评论：6
+ 
+
+Version:0.11 last modified: 2020/06/23
+
+ 
+
+接口隔离原则(Interface Segregation Principle，ISP)是对接口的使用进行约束规范的一个原则，它告诉我们要想把接口用好，关键在于隔离。“隔离”指断绝接触、断绝往来。那么我们使用接口时，要隔离什么东西呢？
+
+首先，“客户端不应该依赖它不需要的接口”，这里的隔离是指客户端和它不需要的接口隔离，也就是客户端不要使用它不需要的接口，这个很容易理解，在实践中也很容易实现。其次，“类间的依赖关系应该建立在最小的接口上”，也就是该接口中没有多余的方法，所以这里的隔离是指和多余的方法隔离。
+
+综上所述，接口隔离原则告诉我们，不要把一大堆方法塞进一个接口里，导致这个接口变得臃肿无比。应根据实际需要，让接口中只有用得上的方法，也就是说要细化我们的接口。
+
+ 
+
+说明：接口并非狭意的譬如在Java中用interface定义的接口，而是一种更为宽泛的概念，可以是接口、抽象类或者实体类。
+
+ 
+
+1.  接口隔离原则的实现方法
+
+在具体应用接口隔离原则时，可根据以下几个规则来衡量:
+
+·       接口尽量小，但是要有限度，一个接口只服务于一个子模块或业务逻辑;
+
+·       为依赖接口的类定制服务，只提供调用者需要的方法，屏蔽不需要的方法;
+
+·       提高内聚，减少对外交互，使接口用最少的方法去完成最多的事情。
+
+·       深入了解业务逻辑，每个项目或产品都有选定的环境因素，环境不同，接口拆分的标准就不同，一定要适度，不要过于细而提高了系统的复杂度。
+
+ 
+
+注： 细化接口虽好，但如果一味地盲目拆分则会增加接口的数量，使设计复杂化，产生更多系统维护成本；而定义太大则降低了灵活性，无法提供定制服务，给整体项目带来无法预料的风险。
+
+ 
+
+2.  接口隔离原则的优点
+
+接口隔离原则是为了约束接口、降低类对接口的依赖。遵循接口隔离原则有以下优点：
+
+1)   将臃肿庞大的接口分解为多个粒度小的接口，可预防外来变更的扩散，提高系统灵活性和可维护性；
+
+2)   接口隔离提高了系统的内聚性，减少了对外交互，降低了系统的耦合性；
+
+3)   合理定义的接口粒度大小，能够保证系统的稳定性，避免接口污染；
+
+4)   使用多个专门的接口还能够体现对象的层次，因为可通过接口的继承来实现对总接口的定义；
+
+5)   可减少项目工程中的代码冗余，过大的接口里通常放置了许多不用的方法，当实现这个接口的时候，被迫设计冗余的代码。
+
+ 
+
+3.  编码示例(接口隔离)
+
+1)  Go语言示例
+
+Go的哲学追求的是保持简单，在保障可维护性的前提下尽量不要进行过度设计。因此Go推荐使用单一接口，同时支持接口组合语法:
+
+type Reader interface {
+
+    read()
+
+}
+
+type Writer interface {
+
+    write()
+
+}
+
+type ReadWriter interface {
+
+    Reader
+
+    Writer
+
+}
+
+ 
+
+示例：将一份文档持久化到磁盘的接口设计（设计思路的演绎）
+
+a)  func Save(f *os.File, doc *Document) error
+
+这样的设计会有一些问题：
+
+·       排除了将文档内容存储到网络等其它设备上的可能。假设后续有将文档存储到网络存储设备上的需求，Save方法需要做出相应的改变，导致所有调用方也需要做出改变。
+
+·       由于直接在磁盘上操作文件，导致对测试不友好。为了验证Save所做的操作，测试需要在文档写入后从磁盘上读取文档内容来做验证。 除此之外，测试还要确保文件被写入到临时空间，之后被删除。
+
+·       *os.File定义了许多与Save操作不相关的方法，如读取文件目录，检查一个路径是否是符号链接。
+
+b)  func Save(rwc io.ReadWriteCloser, doc *Document) error
+
+重构后，任何实现了io.ReadWriteCloser接口的类型都可以替代之前的 *os.File 接口，也无需关心 *os.File 包含的那些不相关的方法。
+
+问题：如果方法遵循单一职责原则，不应读取文件内容来对刚写入的内容做验证，这应该是另一个代码片段应该做的事。
+
+c)  func Save(wc io.WriteCloser, doc *Document) error
+
+问题：方法提供关闭流的机制会引发一个新的问题，wc在什么时机关闭。不管哪种关闭流的方式都会产生问题，因为Save方法的调用者可能希望在写入的文档的流后面追加数据，而此时流已经被关闭。
+
+一个原始解决方案会是定义一个新的type，在其内嵌入io.Writer以及重写Close方法来阻止Save方法关闭底层数据流.
+
+type NopCloser struct {
+    io.Writer
+}
+// Close has no effect on the underlying writer.
+func (c *NopCloser) Close() error { return nil }
+但这违反了里氏替换原则，因为NopCloser并没有真正关闭流。
+
+d)  func Save(w io.Writer, doc *Document) error
+
+将io.Writer作为参数，把方法的职责进一步细化，除了写入数据，其他不相关的事情都不做。
+
+ 
+
+通过将接口隔离原则应用到Save方法，把方法功能更加明确化，它仅需要一种可以写入的东西就可以。方法的定义更具有普适性，现在可以使用Save方法来保存数据到任何实现了io.Writer的设备。
+
+ 
+
+2)  JAVA 示例
+
+【学生成绩管理程序】
+
+分析： 学生成绩管理程序一般包含插入成绩、删除成绩、修改成绩、计算总分、计算均分、打印成绩信息、査询成绩信息等功能，如果将这些功能全部放到一个接口中显然不太合理，正确的做法是将它们分别放在输入模块、统计模块和打印模块等 3 个模块中，其类图如下图所示:
+
+学生成绩管理程序的类图
+
+
+代码实现如下：
+
+package principle;
+
+interface InputModule{ //输入模块接口
+
+  void insert();
+
+  void delete();
+
+  void modify();
+
+}
+
+interface CountModule{ //统计模块接口
+
+  void countTotalScore();
+
+  void countAverage();
+
+}
+
+interface PrintModule{ //打印模块接口
+
+  void printStuInfo();
+
+  void queryStuInfo();
+
+}
+
+//实现类
+
+class StuScoreList implements InputModule,CountModule,PrintModule
+
+{
+
+    private StuScoreList(){}
+
+    public static InputModule getInputModule(){
+
+      return (InputModule)new StuScoreList();
+
+    }
+
+    public static CountModule getCountModule(){
+
+      return (CountModule)new StuScoreList();
+
+    }
+
+    public static PrintModule getPrintModule(){
+
+      return (PrintModule)new StuScoreList();
+
+    }
+
+    public void insert(){
+
+      System.out.println("输入模块的insert()方法被调用！");
+
+    }
+
+    public void delete(){
+
+      System.out.println("输入模块的delete()方法被调用！");
+
+    }
+
+    public void modify(){
+
+      System.out.println("输入模块的modify()方法被调用！");
+
+    }
+
+    public void countTotalScore(){
+
+      System.out.println("统计模块的countTotalScore()方法被调用！");
+
+    }
+
+    public void countAverage(){
+
+      System.out.println("统计模块的countAverage()方法被调用！");
+
+    }
+
+    public void printStuInfo(){
+
+      System.out.println("打印模块的printStuInfo()方法被调用！");
+
+    }
+
+    public void queryStuInfo(){
+
+      System.out.println("打印模块的queryStuInfo()方法被调用！");
+
+    }
+
+}
+
+public class ISPtest{
+
+    public static void main(String[] args) {
+
+      InputModule input =StuScoreList.getInputModule();
+
+        CountModule count =StuScoreList.getCountModule();
+
+      PrintModule print =StuScoreList.getPrintModule();
+
+      input.insert();
+
+      count.countTotalScore();
+
+      print.printStuInfo();
+
+      //print.delete();
+
+    }
+
+}
+
+ 
+
+3)  C语言示例
+
+在C语言中，可以把头文件看成一个模块的接口，根据接口隔离原则也就是说这个头文件中只能包含外部需要的接口。以下通过定义不同的头文件来隔离接口，moudle.h定义外部的接口，moudle.inc定义内部接口：
+
+/*moudle.h*/
+
+void fun1();
+
+/*moudle.inc*/
+typedef struct str_s str_t;
+
+struct str_s
+
+{
+
+    int a;
+
+    int b;
+
+};
+
+/*moudle.c*/
+
+#include "moudle.inc"
+
+void fun1()
+
+{
+
+    str_t s = {0};
+
+　　  // TODO...
+
+}
+
+ 
+
+moudle.h包含外部模块需要的接口，moudle.inc包含内部模块需要的接口。通过查看模块的.inc和.h文件，可清晰的理解模块对外和对内提供的接口形态。如果接口隔离性没有做好，也易导致一些误操作的产生。
+
+ 
+
+注： 万能头文件的使用会显著增加编译时间，如果项目大，可能大部分的编译时间都花在展开头文件上，不利于对代码框架的理解，客户端也无法从包含的头文件中清晰的看到依赖的外部模块。
+
+ 
+
+ 
+
+4.  接口隔离与单一职责的区别
+
+接口隔离原则和单一职责原则都是为了提高类的内聚性、降低它们之间的耦合度，体现了面向对象封装的思想。但两者是不同的，体现在以下两点：
+
+·       单一职责原则强调的是类，接口，方法的职责是单一的，强调的是职责，也就是说如果接口的职责只要是单一的，那么方法数量是没有限制的；而接口隔离原则注重的是对接口依赖的隔离；
+
+·       单一职责原则主要是约束类，它针对的是程序中的实现和细节；而接口隔离原则主要约束接口，针对抽象和程序整体框架的构建。
+
+ 
+
+如果已经满足单一职责原则的接口，在当前的需求下还可以继续细化，那么还需要细化吗？答案是不要再细化了。当单一职责原则和接口隔离原则存在矛盾时，以满足单一职责原则为底线。
+
+ 
+
+最后
+
+与其他原则一样，我们在软件设计时要避免过度使用接口隔离原则，不要进一步划分已经非常具体的接口。记住，创建的接口越多，代码就越复杂，不利于维护; 反之，太大的接口将违背接口隔离原则，灵活性及可扩展性较差。因此从设计上要保持平衡，控制好接口的粒度。
