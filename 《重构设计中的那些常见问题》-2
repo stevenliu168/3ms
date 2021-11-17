@@ -1,0 +1,776 @@
+5.   代码的坏味道
+
+技术债指的是代码虽然完成功能，但却有重复、不清晰或复杂等这样的问题。当修改已有代码添加新功能时，发现已有代码总感觉哪里不对。比如说，逻辑写得太绕，太复杂，太难以理解，循环太多，分支太多，状态太多等等。
+
+ 
+
+当调用已有的代码(函数，类)时，不得不阅读被调用的代码才能确定怎么调用时,
+
+这个代码要么接口定义的不好，比如说，一个函数有十多个参数；要么是文档写的不好，比如说，关键性的函数没有对接口提供足够的说明。
+
+ 
+
+当代码的味道相当糟糕，意味着不仅代码本身有问题，相关代码的设计甚至架构也有问题… …
+
+ 
+
+
+
+5.1重复的代码
+
+代码有很多种坏味道，重复是最坏的一种，是软件中最司空见惯、最刺鼻的味道。如果在一个以上的代码位置看到相同的程序结构，应当设法将其合并为一处，从而使代码看起来更加美好。
+
+ 
+
+重复代码产生的成本很低，但带来的影响却是很大。容易造成修改时的遗漏，修改遗漏导致一个问题需要修改多次才能确定最终修改完成。如果有一部分修改了，另外一部分没有修改且未被发现，日后再遇到感觉类似，实则不同的代码会花费大量的时间确定业务上的需求，及实现上应该如何处理。
+
+ 
+
+5.1.1 消除重复的原则
+通过测试，揭示意图，消除重复，最少元素
+
+l  同一个类中两个函数含有相同的表达式
+
+可以通过抽取方法的方式将重复代码放到另一个方法中以供调用
+
+l  两个互为兄弟的子类内含有相同的表达式
+
+提取重复的代码使之成为函数，将此函数移至两个子类的父类。如代码之间类似并非完全相同时，那么就将相似部分和差异部分完全分离，构成单独函数
+
+l  如重复代码功能骨架相同，可用模版方法
+
+l  两个完全不相干的类含有相同的表达式
+
+可以将重复的代码提取到一个公共的服务类中，然后通过复合调用新类
+
+注意：
+
+消除重复之后，检测代码表达的意图是否准确、完整，抽取方法时可以通过良好的方法名来解释提炼的函数的作用和意图。
+
+ 
+
+5.1.2 重复代码示例
+1)        简单重复，低级代码
+
+
+
+2)        构造函数有重复的部分
+
+
+
+3)        逻辑提取，减少重复
+
+
+
+ 
+
+4)        结构性重复，重复的代码
+
+重复的结构涉及两个互为兄弟的子类内含有重复代码或代码功能骨架相同，两个完全不相干的类含有相同的表达式。
+
+代码示例
+
+类成员函数重载常量与非常量版本时避免代码重复：
+
+为类的某个成员函数重载常量与非常量的版本，常量版本是为保证该函数可作用于常量类对象上，并防止函数改动对象内容。两个版本的函数有时仅返回的类型不同，那么代码会有大量重复，由此也带来编译时间和代码膨胀等开销。
+
+#include <string>
+
+class Test{
+
+    using size_type = std::string::size_type;
+
+public:
+
+    const char & operator[](size_type index) const;
+
+    char & operator[](size_type index);
+
+private:
+
+    std::string str;
+
+};
+
+const char & Test::operator[](size_type index) const {
+
+    //...
+
+    return str[index];
+
+}
+
+char & Test::operator[](size_type index) {
+
+    //...
+
+    return str[index];
+
+}
+
+虽然完全可以将执行的相同的动作写在一个新的成员函数里并将其定义为私有，但这样仍然有函数调用和返回值的重复。一种可行的方法是让两个函数的其中一个调用另一个，如下所示：
+
+class Test {
+
+    using size_type = std::string::size_type;
+
+public:
+
+    const char & operator[](size_type index) const;
+
+    char & operator[](size_type index);
+
+private:
+
+    std::string str;
+
+};
+
+const char & Test::operator[](size_type index) const {
+
+    //...
+
+    return str[index];
+
+}
+
+char & Test::operator[](size_type index){
+
+   return const_cast<char&> (static_cast<const Test &>(*this)[index]);
+
+}
+
+ 
+
+非常量版本调用常量版本并进行类型转换。反过来的做法则是一种错误的行为，常量版本成员函数不会改变对象的逻辑状态，而在常量版本中调用非常量版本则存在着可能改变对象的风险。实际上这样的代码若要通过编译，需要用const_cast去除*this的const属性，这显然是一种不安全的行为。相反，非常量版本成员函数本来就可以改动对象，因为在函数内部调用常量版本并不会有风险。
+
+ 
+
+5.1.3 其它重复类型
+主要涵盖参数型、调用型、回调型、类型型重复，特征性重复等。
+
+1)  参数型重复
+参数中不同结构类型的重复，
+
+函数的作用基本相同，唯一的区别是它们传递给函数的结构类型不同。
+
+[C语言]
+
+static void func_a(void * a, TypeA * b) {
+
+    ...
+
+    printf("%d\n", b -> code);
+
+}
+
+static void func_b(void * a, TypeB * b) {
+
+    ...
+
+    printf("%s\n", b -> string);
+
+}
+
+ 
+
+//重构后
+
+enum struct_type {
+
+  A, B, // ...
+
+};
+
+static void func(void *a, void *b, enum struct_type st){
+
+  // ...
+
+  char const *str;
+
+ 
+
+  switch(st) {
+
+  case A:
+
+    str = ((TypeA *)b)->string;
+
+  case B:
+
+    str = ((TypeB *)b)->string;
+
+  // ...
+
+  }
+
+  printf("%s\n", str);
+
+}
+
+ 
+
+2)  调用型重复
+void AAA() {
+
+  while (count-- >0 ) if (count==pkg->pin_num) break;
+
+  strcpy(dataBuf, pkg->destAddr);
+
+  dataBuf += strlen(pkg->destAddr) + 1;
+
+  if (GetSysCfg() == SEND) send(dataBuf);
+
+}
+
+void BBB() {
+
+  if (isAllowed()) return;
+
+  strcpy(dataBuf, pkg->destAddr);
+
+  dataBuf += strlen(pkg->destAddr) + 1;
+
+}
+
+
+// 重构后，消除重复
+
+void* appendToBuf (void* buf, const char* str) {
+
+  strcpy(buf,str);
+
+  return (void*)((char*)buf+strlen(str) + 1);
+
+}
+
+void AAA() {
+
+  while (count-- > 0 ) if (count==pkg->pin_num) break;
+
+  appendToBuf(dataBuf, pkg->destAddr);
+
+  if (GetSysCfg() == SEND) send(dataBuf);
+
+}
+
+void BBB() {
+
+  if (isAllowed()) return;
+
+  appendToBuf(dataBuf, pkg->destAddr);
+
+}
+
+ 
+
+3)  回调型重复
+void AAA() {
+
+  while (count-- >0 ) if (count==pkg->pin_num) break;
+
+  strcpy(dataBuf, pkg->destAddr);
+
+  dataBuf += strlen(pkg->destAddr) + 1;
+
+  if (GetSysCfg() == SEND) send(dataBuf);
+
+}
+
+void BBB() {
+
+  while (count-- >0 ) if (count==pkg->pin_num) break;
+
+  reload_cache();
+
+  if (GetSysCfg() == SEND) send(dataBuf);
+
+}
+
+
+// 重构后，消除重复
+
+void buf_proc(std::function<void()> const& f) {
+
+  while (count-- >0 ) if (count==pkg->pin_num) break;
+
+  f();
+
+  if (GetSysCfg() == SEND) send(dataBuf);
+
+}
+
+void AAA() {
+
+  buf_proc([]() {
+
+       strcpy(dataBuf, pkg->destAddr);
+
+       dataBuf += strlen(pkg->destAddr) + 1;
+
+  });
+
+}
+
+void BBB() {
+
+  buf_proc([]() {
+
+       reload_cache();
+
+  });
+
+}
+
+ 
+
+4)  类型型重复
+const int &min(const int &a, const int &b){
+
+    return a > b ? b : a;
+
+}
+
+const double &min(const double &a, const double &b){
+
+    return a > b ? b : a;
+
+}
+
+// 重构后，消除重复
+
+template <typename T>
+
+const T &min (const T &a, const T& b) {
+
+    return a > b ? b : a;
+
+}
+
+ 
+
+5.2类的合理性
+
+5.2.1 类过大
+一个类如果存在过多的成员或做了太多的事情，常规来说，势必导致重复和混乱的代码，这往往是坏味道的开始。类的设计应当遵循单一职责原则，上帝类并没有什么实际的意义。重构一个巨大的类可以使用抽取接口的方式来搞清楚这个类应该如何分解，把类的职能分开几个域，尝试拆出另一个类或子类。
+
+ 
+
+过大的类和过长的函数一样
+
+l  不可读，不利于维护、重用及新需求。如果对外提供的服务发生了变动，并不容易快速响应这样的变化
+
+l  当过大的类因某个部分发生变化，可能导致不相关的调用方的代码也会发生变化，是一种耦合性的表现
+
+l  当过大的类被继承时很可能导致其他坏味道。因此，保持小而职责单一的类将对系统的设计有较大帮助，避免过度设计的前提下保持简单的设计
+
+ 
+
+解决过大类的坏味道
+
+简而言之，使用一个亘古不变的法则：分治法。将过大的类，拆分成多个职责单一的小类，手段是提炼类、子类及接口。
+
+1)      分析过大类的属性，看是否有关联的几个属性能够代表一定的业务意思，如果可以使用提炼类，将这几个属性及相关操作挪动到一个新的类中。循环往复，如此，一个大的类被拆分成多个小的且职责较为单一的类。
+
+2)      观察这个大类中的方法，看是否存在兄弟关系的方法，如果有可以使用提炼子类的方法，将相关方法提炼到子类中，并考虑使用继承还是面向接口使用提炼接口。这样相似行为的行为聚集在一个类中，拆分到多个类中，并可以进一步和方法的调用发来解耦。
+
+3)      进一步观察剩余类的行为，如果这些行为在处理一类事情，那么可以停止了，在处理多类事情，可以按照处理逻辑的类型进一步拆分。
+
+ 
+
+5.2.2 类内联化
+如果某个类所做的事情太少以至于不值得作为一个类存在，则将这个类的所有属性/函数搬移到另一个类中，然后删除原来的类。
+
+ 
+
+5.2.3 冗赘类
+某个类(属于继承或组合体系)在重构后变得冗余，或这个类是为未来变化服务，当前并没有用，没有存在的价值则可以消除它。冗赘类可用来判断一个类或用到的一个设计模式是否合适。
+
+ 
+
+重构方式
+
+l  如果超类和子类实现的功能没有太大的差别，则可将它们合并成一个类
+
+l  与提炼类相反，如果某个类所做的事情太少以至于不值得作为一个类存在，则将这个类内联到另一个类中，然后删除原来的类。
+
+ 
+
+class Person {
+     get officeAreaCode() { return this._telephoneNumber.areaCode; }
+     get officeNumber() { return this._telephoneNumber.number; }
+}
+class TelephoneNumber {
+     get areaCode() { return this._areaCode; }
+     get number()   { return this._number; }
+}
+// 重构后
+
+class Person {
+     get officeAreaCode() { return this._officeAreaCode; }
+     get officeNumber() { return this._officeNumber; }
+ }
+ 
+
+Speculative Generality（假通用性）：如果抽象类、委托、方法的参数没有实际的作用，那么就应当被移除掉。
+
+ 
+
+5.2.4 异曲同工类
+两个相似的类，却存在不同的接口。可以采用以下重构方法：
+
+l  通过重构，抽象出公共接口
+
+l  如对代码没有权限，不能修改类的接口, 可借用相关模式来重构
+
+ 
+
+5.2.5 纯数据类
+针对某些类仅拥有一些字段，及对应的getter/setter函数，这类没有业务行为函数的类就是DDD中描述的贫血模型。在开发过程中，除非框架要求，应杜绝贫血模型的出现。
+
+ 
+
+可以采用以下重构方法：
+
+l  对那些不该被其他类修改的字段设置方法进行移除
+
+l  把在其他类上的调用行为搬移到数据类中
+
+ 
+
+5.2.6 其它
+1）  一个类受多种变化的影响，把每种变化可能影响的方面提炼成单独的类，使每个类只受某一种外界变化的影响。
+
+2）  一种变化影响多个类，把这种改变的影响提炼到一个类中。
+
+3）  如果某个类做了过多的简单委托动作，则把该类移除，让客户端直接调用受托类。
+
+5.3函数过长及适配
+
+5.3.1 函数过长的坏味道
+长度过长的函数，包括横向过长，纵向过长。横向过长时，往往一眼无法快速了解该行代码要表达的意思和中间的过程。纵向过长时，往往会感觉某个函数内部逻辑复杂、晦涩难懂。导致后续修改难度逐渐增加，经多次修改后甚至原有的基本结构都会遭到破坏。
+
+ 
+
+函数过长时可以把它分解为多个小型函数，这符合高内聚的要求，通过逻辑的共享，提高代码的重用性。以函数做什么而不是怎么做命名函数来帮助理解方法的作用和提升可维护性，如果函数参数列过长，可以考虑引入一个参数对象，如果还不行，就可以考虑用函数对象代替函数。
+
+ 
+
+改善方法过长的建议
+
+l  横向过长的代码，通过代码格式化或IDE插件来发现和消除
+
+l  纵向过长的代码，通过抽取方法来提炼小的函数。同时注意，提炼函数的时候也是考虑创建新的类时候，将不同作用的函数提炼到相应职责的类中。
+
+l  纵向过长的代码往往存在职责不够单一，保持方法职责的单一有助于维护代码的可读性。通过提炼方法，那么某个具体实现细节可以被提炼到一个小函数中，而原来的函数则职责就变成调度作用。所以方法的单一职责，更清晰的描述应该是一类事情，要么只在处理实现细节，要么处理调度协调代码调用
+
+代码长度不是问题，关键在于函数名称和函数本体之间的语义距离。
+
+ 
+
+限制函数的长度和嵌套深度
+
+短胜于长，平胜于优，过长的函数和嵌套过深的代码块的出现，经常是因为没能赋予一个函数以一个紧凑的职责所致，这两种情况通常都能够通过更好的重构予以解决。过长的函数和嵌套过深的代码块都是使函数更难于理解和维护的密不可分的两大元凶。
+
+l  尽量紧凑，一个函数只赋予一个职责
+
+l  不要自我重复，优先使用命名函数，而不要让相似的代码片段重复出现
+
+l  优先使用&&，在可以使用&&条件判断的地方要避免使用连续嵌套的if
+
+l  不要过分使用try，优先使用析构函数进行自动清除而避免使用try代码块
+
+l  优先使用标准算法，算法比循环嵌套要少，通常也更好
+
+l  不要根据类型标签进行分支。也就是尽量不要使用switch…..case语句
+
+ 
+
+当然，如果一个函数的功能无法合理地重构为多个独立的子任务，那么它的较长和嵌套较多就是合理的。但如果有几个这样的函数都具有相似的参数，那么它们就有可能成为一个新类的成员。
+
+// 示例：重构前
+
+void PrintOwing(double amount) {
+
+    PrintBanner();
+
+    // print details
+
+    cout << "name: " << m_name << endl;
+
+    cout << "amount: " << amount << endl;
+
+}
+
+// 重构后（提炼函数：把意图和实现分开）
+
+void PrintOwing(double amount){
+
+    PrintBanner();
+
+    PrintDetails(amount);
+
+}
+
+void PrintDetails(double amount){
+
+    cout << "name: " << m_name << endl;
+
+    cout << "amount: " << amount << endl;
+
+}
+
+注：基于性能角度，不要做不成熟的优化，确保关键热点函数的性能。
+
+ 
+
+5.3.2 函数对象的取代
+对于一个大型的函数，如有太多的临时变量导致无法提炼，而采用查询来替代临时变量则又产生过多的查询函数时，就可采用函数对象来替代，对函数进行重构。将函数放进一个单独对象中，局部变量就成了对象内的字段，然后可在同一个对象中将这个大型函数分解成多个小型函数。
+
+ 
+
+// 示例：重构前
+
+class Account {
+
+    ...
+
+    int GetGamma(int inputVal, int quantity, int yearToDate) {
+
+        int importantVal1 = (inputVal * quantity) + Delta();
+
+        int importantVal2 = (inputVal * yearToDate) + 100;
+
+        if ((yearToDate - importantVal1) > 100) {
+
+            importantVal2 -= 20;
+
+        }
+
+        int importantVal3 = importantVal2 * 7;
+
+        ...
+
+        return importantVal3 - 2 * importantVal1;
+
+    }
+
+}
+
+// 重构后
+
+class Account {
+
+    // ...
+
+    int GetGamma(int inputVal, int quantity, int yearToDate){
+
+        Gamma gamma(this, inputVal, quantity, yearToDate);
+
+        return gamma.Compute();
+
+    }
+
+}
+
+class Gamma {
+
+public:
+
+    Gamma(Account* account, int inputVal, int quantity, int yearToDate);
+
+    int Compute() {
+
+        importantVal1 = (inputVal * quantity) + account->Delta();
+
+        importantVal2 = (inputVal * yearToDate) + 100;
+
+        if ((yearToDate - importantVal1) > 100) {
+
+            importantVal2 -= 20;
+
+        }
+
+        importantVal3 = importantVal2 * 7;
+
+        // ...
+
+        return importantVal3 - 2 * importantVal1;
+
+    }
+
+private:
+
+    Account* account;
+
+    int inputVal;
+
+    int quantity;
+
+    int yearToDate;
+
+    int importantVal1;
+
+    int importantVal2;
+
+    int importantVal3;
+
+}
+
+ 
+
+5.3.3 函数的对象适配
+如果某个函数使用另一个对象的次数比使用自己所驻对像的次数多，就可将函数搬移到另一个对象。当函数中用到了原来对象的属性时，搬移后可以把原来对象this作为入参。简单的说就是一个方法从另一个类的对象那里获取许多的值，重构的方案是将该方法移到另一个类中。
+
+ 
+
+重构手法：提炼方法、移动方法
+
+// 示例：重构前
+
+class Account {
+
+public:   
+
+    double OverdraftCharge(){
+
+        if (m_type->IsPremium()) {
+
+            double result = 10;
+
+            if (m_dayOverdrawn > 7) {
+
+                result += (m_dayOverdrawn - 7) * 0.85;
+
+            }
+
+            return result;
+
+        }
+
+        return m_dayOverdrawn * 1.75;
+
+    }
+
+    double BankCharge(){
+
+        double result = 4.5;
+
+        if (m_dayOverdrawn > 0) {
+
+            result += OverdraftCharge();
+
+        }
+
+        return result;
+
+    }
+
+private:
+
+    AccountType* m_type;
+
+    int m_dayOverdrawn;
+
+}
+
+// 重构后
+
+class Account {
+
+public:
+
+    double BankCharge() {
+
+        double result = 4.5;
+
+        if (m_dayOverdrawn > 0) {
+
+            result += m_type->OverdraftCharge(this);
+
+        }
+
+        return result;
+
+    }
+
+private:
+
+    AccountType* m_type;
+
+    int m_dayOverdrawn;
+
+} 
+
+class AccountType {
+
+public:
+
+    double OverdraftCharge(Account* account) {
+
+        if (IsPremium()) {
+
+            double result = 10;
+
+            if (account->GetDayOverdrawn() > 7) {
+
+                result += (account->GetDayOverdrawn() - 7) * 0.85;
+
+            }
+
+            return result;
+
+        }
+
+        return account->GetDayOverdrawn() * 1.75;
+
+    }   
+
+}
+
+其它适配现象
+
+l  函数对某个类的兴趣高过对所驻类的兴趣
+
+l  函数中的一部分对某个类的兴趣高过对所驻类的兴趣
+
+ 
+
+5.3.4 消除不必要的间接性
+找出有用的间接层，去除不必要的间接处理环节。
+
+int getRating() {
+     return (moreThanFiveLateDeliveries()) ? 2 : 1;
+}
+boolean moreThanFiveLateDeliveries() {
+     return _numberOfLateDeliveries > 5;
+}
+//重构后
+
+int getRating() {
+     return (_numberOfLateDeliveries > 5) ? 2 : 1;
+}
+ 
+
+5.4过长参数列表
+
+一个函数的参数列表过长时也是一种代码坏味道。参数过长和过大的类、过长的函数、重复代码一样，起初并不会导致什么错误，但随着时间的向前演变过程，会给代码带来很多麻烦。
+
+ 
+
+长参数函数的可读性很差，尤其是存在多个类似长参数方法时，并不容易判断出应该使用哪个方法。当需要为长参数函数添加新的参数时，将会促使调用方发生变化，且新参数的位置也将让这个方法更加难以理解。某些参数数据缺乏合理的对象归属。
+
+ 
+
+5.4.1 长参数列表重构
+l  如传递的几个参数都出自一个对象，那可以选择使用保持完整对象直接传递该对象
+
+l  如果方法的参数来自不同的对象，可以选择使用引入参数对象将多个参数放入一个新的类中，原来方法传递多个分开的参数，现在传递一个包含多个属性的一个对象
+
+l  如果调用者先计算调用 A 方法得到计算结果，然后将计算结果再传递给这个长参数函数，那么可以考虑去除这个参数，改为在长参数函数中直接调用 A 得到结果，从而消除传递的部分参数，意指用查询获得，而不由参数传入
+
+l  用函数对象代替函数
+
+ 
+
+注：有些情况下长参数的存在也是合理，可在一定程度上可以避免某些依赖关系的产生。可以通过观察长参数函数变化的频率，采用“事不过三，三则重构“的原则，保持进行重构的准备。
