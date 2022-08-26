@@ -1,0 +1,85 @@
+http://3ms.huawei.com/km/blogs/details/8398073
+
+单一职责的背景
+image.png
+
+1972年，David L. Parnas发表了一篇经典论文（ On the Criteria To Be Used in Decomposing Systems into Modules. ） 主要是讲解比较了两种通过简单算法分解和分离逻辑的不同策略，最终得到一个结论
+“We have tried to demonstrate by these examples that it is almost always incorrect to begin the decomposition of a system into modules on the basis of a flowchart. We propose instead that one begins with a list of difficult design decisions or design decisions which are likely to change. Each module is then designed to hide such a decision from the others.” [基于模块的易变性来分割模块]
+
+1974年，Edsger Dijkstra发表了另外一篇论文（On the role of scientific thought. ）， 提出了关注点分离。
+
+在整个1970s~1980s之间，principles of software architecture发展比较迅速， 结构化编程和设计风靡一时，Larry Constantine引入了耦合和内聚。
+
+1990年，Robert C. Martin (Uncle Bob)整合这些概念，提出了单一职责原则(Single-responsibility principle)。
+
+“A class should have one, and only one, reason to change.”
+
+Wikipedia有对于单一职责的描述
+Every module or class should have responsibility over a single part of the functionality provided by the software, and that responsibility should be entirely encapsulated by the class.
+每一个模块或者类所对应的职责，对应了系统若干功能中的某个单一部分，同时关于该职责的封装都应当通过这个类来完成。
+
+单一职责对于下面的单元都适用：
+
+Variables
+Methods
+Classes
+Packages
+Modules
+Systems
+§ 深度剖析单一职责
+§ 如何应用单一职责
+单一职责原则：就一个类而言，应该仅有一个引起它变化的原因。
+
+我们来看一个例子：
+现在需要实现一个调制解调器，接口实现如下：
+
+1interface Modem2{3	public void dial(String pno);4	public void hangup();5	public void send(char c);6	public char recv();7}
+这个代码是否是单一职责的呢，如果从职责上划分，可以划分成两种职责：连接管理和数据通信，但是是不是真的有必要分解成两个模块呢？ 如果基于现在的需求，那么这个就是满足单一职责的，因为都是围绕Modern进行。
+
+但是，如果某些功能发生了变化，就不一样了。send和recv的底层实现发生了变化， 那么就需要把数据通信的功能拆分出去。如果连接管理的底层实现发生了另外变化，那么就需要把数据通信的功能拆分出去。最终就会变成这样：
+
+image.png
+但是，如果数据通信和连接管理是同时变化，那么就不要拆分
+
+所以：只有实际的变化发生的时候，拆分才有意义，如果变化没有发生，强制按照SRP进行拆分是不明智的
+
+我们从另外一个角度来分析，如果Modem模块有两个客户分别关注不同的功能点，并且这两部分功能点的变化由于客户的不同，出现了不同的变化方向，所以就出现了职责不单一。
+image.png
+
+§ 重新认识单一职责
+单一职责有两个关键点：
+
+什么是职责，Uncle Bob认为职责就是引起它变化的原因
+这个变化的关键是什么，是人。 在编写软件模块时，您要确保在请求更改时，这些更改只能来自一个人，或者是代表一个狭义定义的业务功能的紧密联系的一群人。您想将模块与整个组织的复杂性隔离开来，并设计系统，使每个模块仅负责（响应）该业务功能的需求。
+所以Uncle Bob重新解释了单一职责的：
+Gather together the things that change for the same reasons. Separate those things that change for different reasons. （将因相同原因而发生变化的事物聚集在一起。分开那些由于不同原因而改变的事物。）
+
+从这里我们就可以了解到，单一职责只是定义内聚和耦合的另一种方式。我们想要增加由于相同原因而改变的事物之间的凝聚力，并且我们希望减少因不同原因而改变的事物之间的耦合。
+
+§ 物理文件上的单一职责
+前面我们提到的都是变量、类，包等在逻辑上的保证单一职责，但是当我们实现为代码以后，我们就会产生源代码，比如C++的头文件和源文件，Java/Go的源文件和包目录。不要出现“上帝头文件”，每个源文件里面不要过多的类放在一起，除非是sealed class等关联性很强的类。
+
+§ 封装不合理导致的职责不单一
+我们来看下面这部分代码：
+image.png
+
+上面这个Manager类中去操作Employee类， 但是Employee类操作文件的职责暴露给了Manager，我们应该将文件的逻辑封装起来。
+image.png
+
+这样Manager不会再有Employee的内部职责了。
+
+所以责任的封装与具有单一责任一样必要，就像单一职责的定义说的that responsibility should be entirely encapsulated by the class.
+
+§ 总结
+The SRP is one of the simplest of the principle, and one of the hardest to get right.
+
+单一职责在重构中被广泛使用，但是没有充分理解SRP的要点进行代码拆分而导致代码的碎片化。 尤其在微服务化/组件化以后，划分了很多微服务/组件，但是他们之间的接口交互比较复杂，数据封装逐步被打破，需要更多的依赖注入来完成解耦等等。这些都是由于没有理解SRP应该是基于变化的，也没有理解有效进行进行封装。
+
+记住一点：单一职责是在聚合和拆分的一个平衡，基于变化的驱动来进行拆分，是一个很有效的方法。
+
+最后要保证逻辑上和物理上的单一职责，这样你就会发现实现代码和逻辑视图是契合的。
+
+单一职责是“将因相同原因而发生变化的事物聚集在一起。分开那些由于不同原因而改变的事物。”，这样理解以后我们可以更好地将这个原则应用到模块化设计中。
+
+image.png
+
