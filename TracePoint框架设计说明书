@@ -1,0 +1,280 @@
+http://3ms.huawei.com/hi/group/2692269/wiki_3968937.html
+
+TracePoint框架设计说明书
+摘要：作者: 王念秋 90004841 1 TracePoint框架功能描述 TracePoint用于在代码中注入故障，以支持软件层面的SFMEA测试。TracePoint框架需要能接收Diagnose的命令行输入，除支持其自身要求的参数外，还能支持用户参数，能够将对应故障点的故障激活或是去激活。TracePoint框架需要对其它模块提供公共接口，用于触发调用故障点。TracePoint框架将故障注入代码包含在特定宏中，用于在发布版本时关闭该宏时不编译故障注入代码。 2 约束 由于框架
+
+目录
+1     TracePoint框架功能描述
+2     约束
+3     TracePoint框架介绍和使用说明
+4     TracePoint框架使用范例
+5      Diagnose命令说明
+[显示全部]
+作者: 王念秋 90004841
+
+ 
+
+  [ 回目录 ]1     TracePoint框架功能描述   
+TracePoint用于在代码中注入故障，以支持软件层面的SFMEA测试。TracePoint框架需要能接收Diagnose的命令行输入，除支持其自身要求的参数外，还能支持用户参数，能够将对应故障点的故障激活或是去激活。TracePoint框架需要对其它模块提供公共接口，用于触发调用故障点。TracePoint框架将故障注入代码包含在特定宏中，用于在发布版本时关闭该宏时不编译故障注入代码。
+
+  [ 回目录 ]2     约束   
+由于框架需要兼容老的故障注入代码的注入方式，因此老的接口仍然可以使用。但由于老接口不适宜做SFMEA，此处约定新增的故障注入代码必须严格按照本文档提供的方法和接口来编写。
+
+  [ 回目录 ]3     TracePoint框架介绍和使用说明   
+  [ 回目录 ]3.1     注册   
+注册的目的是把TracePoint的名字、描述和回调函数加入到TracePoint框架中。注册宏如下：
+
+LVOS_TP_REG(tpname, tpdesc,fnHook)
+
+其中，回调函数声明为：void HookFuc(char userparam[], …)，userparam为必备参数，后接N（N>=0）个可变参数；回调函数名为NULL表示无回调函数。故障点名称约定为“流程标识_层级_模块ID_故障点ID”。示例如下：
+
+LVOS_TP_REG(CR-LUN_1_363_1, “lunXXX”, LUNXXXHook)
+
+  [ 回目录 ]3.2     激活   
+激活部分，新框架与旧框架不同的有以下三点：
+
+1)     新框架不能在注册时指定初始状态是否为active，而默认为所有TracePoint都为inactive；
+
+2)     新框架在激活时要指定TracePoint的类型和用户参数。类型有三种：复位、回调和暂停。
+
+激活的方法分为以下三种：
+
+3.2.1       Diagnose命令激活（推荐）
+激活TracePoint的diagnose命令为：activetp -p tpname –t type [–u userparam]。其中， tpname为TracePoint的名字，与注册时名字必须完全一致；type为类型，合法值有callback、pause和reset；userparam为故障点指定的参数，字符串类型，最大长度16个字符，格式不限，由TracePoint调用者自行定义和解析。
+
+下面对三种类型的TracePoint进行介绍。
+
+l callback：首先调用该故障点注册的回调函数（可用于改变一些变量的值，以及插入新的流程），并且不会执行故障注入宏之间的代码；
+
+l pause：在函数执行到该故障点时，会暂停执行指定时间（通过sleep实现），不执行回调函数。暂停的时间无限制，单位为毫秒。不能在原子上下文（即加锁未释放的代码中）中注入Pause类型的故障点，会导致死锁等问题；
+
+l reset：在调用点立即复位控制器，不执行回调函数。
+
+一个TracePoint可以同时支持这三种类型，在激活一种类型时，另一种类型自动去激活。
+
+callback示例（将故障点传入的变量改变为指定值）：activetp –p XNET_MSG_22 –t callback –u 50。
+
+pause示例（在接收到消息后延迟3秒）：activetp –p XNET_MSG_22 –t pause –u 3000。
+
+reset示例（在接收到WAIT_ACCESS命令字时复位）：activetp –p DMP_CMD_7 –t reset。
+
+3.2.2       配置文件激活
+上电过程中，或自动化测试需要激活某个故障点时，可能没有机会执行diagnose命令。这种场景我们提供配置文件来激活，配置文件中记录的Tracepoint，在该Tracepoint被注册时立即被激活。
+
+配置文件存放路径为/OSM/conf/tracepoint.ini(内核态)，运行进程路径下conf/tracepoint.ini(用户态)。该文件需要手动生成，其格式为：name type alive userparam。其中，name为Tracepoint注册时的名字；type为激活的类型，其值为以下三个字符串之一：callback、reset、pause；alive为激活后故障点可以被执行的次数，该参数值为0表示可以无限次被执行；userparam为用户参数。以下为一条配置项的示例：
+
+OS_SYNC_VERSION_001 callback 0 hello,world
+
+应测试部的需求，我们提供只生效一次的配置文件tracepoint_tmp.ini。该文件在生效一次后就会被自动删除。
+
+3.2.3       代码中激活（不推荐）
+在代码中显式调用activeTracePoint函数也可以完成激活，该函数参数较多，并且需要硬编码到代码中，因此不推荐使用。如无必要，强烈建议使用diagnose命令和配置文件激活。
+
+函数原型为：
+
+int32_tactiveTracePoint(uint32_t pid, const char *name, int32_t type, uint32_t time,LVOS_TRACEP_PARAM_S userParam)；
+
+其中，pid固定传入PID_OSP_NULL，即0；name为Tracepoint的注册名，type为LVOS_TP_TYPE_E枚举值；time为激活后故障点可以被执行的次数，该参数值为0表示可以无限次被执行；userParam为用户参数，类型为LVOS_TRACEP_PARAM_S结构体，构造该参数的示例如下：LVOS_strncpy(&userParam.achParamData[0], “hello,0”,LVOS_TRACEP_PARAM_SIZE - 1);
+
+  [ 回目录 ]3.3     调用   
+TracePoint调用宏嵌入故障注入点处，只有在TracePoint的状态为active时才生效，否则不影响原流程。TracePoint的调用宏在_DEBUG宏中定义，以确保对正式版本的代码零侵入。
+
+TracePoint调用宏为：LVOS_TP_START和LVOS_TP_END，分别表示故障注入的开始和结束，需要替换的代码置于两个宏之间。LVOS_TP_START接收N（N>0）个除用户参数外的可变参数，另外提供一个宏LVOS_TP_NOPARAM_START，用于某些特殊场景下无可变参数的调用宏。
+
+注意：三个调用宏在使用时均不加句末的分号。
+
+用法示例如下：
+
+修改iRet的值为ERROR，而忽略writeFunc这个函数：
+
+int32_t iRet = RETURN_OK;
+
+LVOS_TP_START(TRACEP_NAME, &iRet)
+
+iRet = writeFunc(param1, param2);
+
+LVOS_TP_END
+
+对于不需要替换原有流程的故障注入，例如复位、插入一个新流程等，LVOS_TP_START和LVOS_TP_END之间不必有代码，如下：
+
+LVOS_TP_START(&param)
+
+LVOS_TP_END
+
+调用宏的定义大体如下：
+
+#define LVOS_TP_START (tracep_name, ...)       \
+
+    LVOS_TRACEP_S *_pstTp = NULL;                                             \
+
+    _pstTp =LVOS_FindTracePoint(MY_PID, #tracep_name);    \
+
+    if (_pstTp->active&& CALLBACK == _pstTp->type)           \
+
+    {                                                                                                                \
+
+       _pstTp->hookFunc(_pstTP->userparam, __VA_ARGS__);  \
+
+    }                                                                                                                \
+
+    else                                                                                                          \
+
+    {                                                                                                                \
+
+        if (_pstTp->active&& RESET == _pstTp->type)                      \
+
+        {                                                                                                        \
+
+            panic("TracePoint%s reset.", #tracep_name);               \
+
+        }
+
+ 
+
+#define LVOS_TP_END     }
+
+  [ 回目录 ]3.4     状态查询   
+TracePoint默认提供了查看所有故障点状态的接口，测试人员可以通过该接口查看指定故障点是否被激活以及流程是否运行到此故障点。具体的方法是执行diagnose命令showtp –p XXX，查询单个故障点的详细信息。如果该故障点为激活状态，则最后一项Time Called会显示故障点被触发的次数。显示格式为：“Time Called: 2”，表示该故障点被触发了2次。当故障点状态为inactive时，不显示该项。当故障点被重新激活时，触发次数被重置为0。
+
+  [ 回目录 ]4     TracePoint框架使用范例   
+  [ 回目录 ]4.1     屏蔽写盘操作，直接返回失败   
+本例要展示的是：Callback类型；屏蔽原有流程；激活时无用户参数。
+
+本例的场景是：模拟写盘失败，测试失败处理流程。这里需要屏蔽实际的写盘函数，理由是如果执行了写函数并且下盘成功，而我们修改了返回值为失败则可能造成数据不一致。因此，此例适用于将写盘函数包含在两个宏之间。
+
+1)     首先是注册。
+
+LVOS_TP_REG(DMP_WRITEDISK_1 “write disk fail”, writeDiskFailHook)
+
+2)     其次是激活。执行diagnose命令：
+
+activetp –p DMP_WRITEDISK_1 –t callback。此处，由于我们始终是将返回值修改为RETURN_ERROR，因此，不需要在激活时传用户参数。下一个例子将展示传用户参数的场景。
+
+3)     最后是调用，代码如下：
+
+int32_t iRet = RETURN_OK;
+
+LVOS_TP_START(DMP_WRITEDISK_1, &iRet)
+
+iRet = writeToDisk(data, disked, lba);
+
+LVOS_TP_END
+
+回调函数如下，将iRet的值修改为ERROR：
+
+void writeDiskFailHook (char userparam[], int32_t *pValue)
+
+{
+
+    *pValue = RETURN_ERROR;
+
+}
+
+  [ 回目录 ]4.2     修改水位   
+本例要展示的是：Callback类型；不屏蔽原有流程；激活时传入用户参数。
+
+本例的场景是：在动态流控时，需要测试当CPU占用率达到95%时是否启动流控，TracePoint修改CPU占用率为95%。
+
+1)     首先是注册。
+
+LVOS_TP_REG(CACHE_FLOW_5 “set CPU usage”, setCPUUsageHook)
+
+2)     其次是激活。执行diagnose命令：
+
+activetp –p CACHE_FLOW_5 –t callback –u 95。这里，故障点根据不同的目的，设置的CPU占用率是不固定的，因此需要在激活时传入。
+
+3)     最后是调用。代码如下：
+
+uint32_t cpuUsage;
+
+LVOS_TP_START(CACHE_FLOW_5, &cpuUsage)
+
+LVOS_TP_END
+
+回调函数如下，将Usage的值修改为激活时指定的值：
+
+void setCPUUsageHook (char userparam[], int32_t *pUsage)
+
+{
+
+    Uint32_t usage =strtoU32(userparam);
+
+    * pUsage = usage;
+
+}
+
+  [ 回目录 ]4.3     暂停执行   
+本例要展示的是：pause类型；无回调函数。
+
+本例的场景是：流程执行到特定步骤时，暂停执行3秒钟，以便手动将链路断开以查看链路中断对流程的影响。
+
+1)     首先是注册。
+
+LVOS_TP_REG(CR_LUN_FLOW_7 “pause create lun flow, NULL)
+
+2)     其次是激活。执行diagnose命令：
+
+activetp –p CR_LUN_FLOW_7 –t pause –u 3000。
+
+3)     最后是调用。无回调函数，或回调函数无除userparam之外的参数时，使用LVOS_TP_NOPARAM_START，代码如下：
+
+LVOS_TP_NOPARAM_START(CR_LUN_FLOW_7)
+
+LVOS_TP_END
+
+  [ 回目录 ]4.4     复位   
+本例要展示的是：Reset类型；无回调函数。
+
+本例的场景是：正在下IO，当流程进行到写cache时，系统突然复位。
+
+4)     首先是注册。
+
+LVOS_TP_REG(CACHE_FLOW_7 “reset at write_cache”, NULL)
+
+5)     其次是激活。执行diagnose命令：
+
+activetp –p CACHE_FLOW_7 –t reset。
+
+6)     最后是调用。无回调函数，或回调函数无除userparam之外的参数时，使用LVOS_TP_NOPARAM_START，代码如下：
+
+LVOS_TP_NOPARAM_START(CACHE_FLOW_7)
+
+LVOS_TP_END
+
+  [ 回目录 ]5      Diagnose命令说明   
+  [ 回目录 ]5.1      激活：activetp   
+l 命令格式
+
+activetp -p tpname [-t type] [-a alivenum] [-u userparam]
+
+l 参数说明
+
+-p tpname：指定激活的Tracepoint名字，必须与注册时一致；
+
+-t type：指定激活Tracepoint的类型，有效值为callback、reset和pause；不指定默认为callback；回调函数注册为NULL的不能激活callback类型；
+
+-a alivenum：指定Tracepoint的有效次数（alivenum>=1），即Tracepoint在执行多少次之后去激活；
+
+-u userparam：指定用户参数，在callback类型时，用作回调函数的第一个参数；在pause类型时，用作暂停的秒数。
+
+  [ 回目录 ]5.2      去激活：deactivetp   
+l 命令格式
+
+deactivetp –p tpname
+
+l 参数说明
+
+-p tpname：指定去激活的Tracepoint名字，必须与注册时一致；
+
+  [ 回目录 ]5.3      查询TracePoint状态：showtp   
+l 命令格式
+
+showtp [-m pid] [-p tpname] [-t type]
+
+l 参数说明
+
+-m pid：只显示模块ID为pid的TracePoint；
+
+-p tpname：详细显示单个TracePoint的信息；
+
+-t type：只显示激活状态等于type的TracePoint，type有效值为active和inactive。
