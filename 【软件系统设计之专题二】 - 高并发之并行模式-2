@@ -1,0 +1,781 @@
+六.  Workers Pool模式
+
+本章节以 Golang 示例讲解。
+
+在Go中goroutine已经足够轻量，甚至net/http server的处理也是 goroutine-per-connection。每个goroutine的初始内存消耗在 2~8kb，当有大批量任务的时候，需要起很多goroutine来处理，这会给系统带来较大的内存开销和GC压力，此时可以考虑一下协程池的使用。
+
+ 
+
+/** Worker pool*/
+
+type TaskHandler func(interface{})
+
+type Task struct {
+
+    Param   interface{}
+
+    Handler TaskHandler
+
+}
+
+type WorkerPoolImpl interface {
+
+    AddWorker()         // 增加 worker
+
+    SendTask(Task)       // 发送任务
+
+    Release()          // 释放
+
+}
+
+type WorkerPool struct {
+
+    wg   sync.WaitGroup
+
+    inCh chan Task
+
+}
+
+func (d *WorkerPool) AddWorker() {
+
+    d.wg.Add(1)
+
+    go func(){
+
+        for task := range d.inCh {
+
+            task.Handler(task.Param)
+
+        }
+
+        d.wg.Done()
+
+    }()
+
+}
+
+func (d *WorkerPool) Release() {
+
+    close(d.inCh)
+
+    d.wg.Wait()
+
+}
+
+func (d *WorkerPool) SendTask(t Task) {
+
+    d.inCh <- t
+
+}
+
+func NewWorkerPool(buffer int) WorkerPoolImpl {
+
+    return &WorkerPool{
+
+        inCh: make(chan Task, buffer),
+
+    }
+
+}
+
+ 
+
+func main() {
+
+    bufferSize := 100
+
+    var workerPool = NewWorkerPool(bufferSize)
+
+    workers := 4
+
+    for i := 0; i < workers; i++ {
+
+        workerPool.AddWorker()
+
+    }
+
+    var sum int32
+
+    testFunc := func (i interface{}) {
+
+        n := i.(int32)
+
+        atomic.AddInt32(&sum, n)
+
+    }
+
+    var i, n int32
+
+    n = 1000
+
+    for ; i < n; i++ {
+
+        task := Task{ i,
+
+            testFunc,
+
+        }
+
+        workerPool.SendTask(task)
+
+    }
+
+    workerPool.Release()
+
+    fmt.Println(sum)
+
+}
+协程池使用了反射来获取执行的函数及参数，在Go中可能有点让人有点膈应。但如果批量执行的函数是已知的，可优化成一种只执行指定函数的协程池，能够提升性能。
+
+ 
+
+七.  生产者消费者模式
+
+该模式是一个经典的多线程设计模式，为多线程间的协作提供了良好的解决方案，通常包括两类线程，即若干个生产者线程和若干个消费者线程。通过平衡生产线程和消费线程的工作能力来提高程序的整体处理数据的速度。简单地说就是生产者生产一些数据，然后放到队列中，同时消费者从队列中来取这些数据。这样就让生产、消费变成了异步的两个过程。当队列中没有数据时，消费者就进入饥饿的等待中；而当队列中数据已满时，生产者则面临导致CPU被剥夺的下岗问题。
+
+ 
+
+1.  Java:生产者消费者
+
+生产者线程负责提交用户请求，消费者线程则负责具体处理生产者提交的任务。生产者和消费者之间则通过共享内存缓冲区进行通信。
+
+其结构图如下:
+
+
+
+PCData为我们需要处理的元数据模型, 生产者构建PCData, 并放入缓冲队列.消费者从缓冲队列中获取数据, 并执行计算.
+
+ 
+
+生产者核心代码
+
+while(isRunning) {
+
+   Thread.sleep(r.nextInt(SLEEP_TIME));
+
+   data = new PCData(count.incrementAndGet); // 构造任务数据
+
+   System.out.println(data + " is put into queue");
+
+   if (!queue.offer(data, 2, TimeUnit.SECONDS)) {//将数据放入队列缓冲区中
+
+      System.out.println("faild to put data : " + data);
+
+   }
+
+}
+
+
+消费者核心代码
+
+while (true) {
+
+ PCData data = queue.take();// 提取任务
+
+  if (data != null) {// 获取数据, 执行计算操作
+
+   int re = data.getData() * 10;
+
+    System.out.println("after call, value is : " + re);
+
+    Thread.sleep(r.nextInt(SLEEP_TIME));
+
+ }
+
+}  
+生产消费者模式可有效对数据解耦,优化系统结构,降低生产者和消费者线程相互之间的依赖与性能要求.常规使用BlockingQueue作为数据缓冲队列, 通过锁和阻塞来实现数据之间的同步。如对缓冲队列有性能要求, 则可使用基于CAS无锁设计ConcurrentLinkedQueue.
+
+ 
+
+2.  Go: 生产者消费者
+
+// 生产者: 生成 factor 整数倍的序列
+func Producer(factor int, out chan<- int) {
+    for i := 0; ; i++ {
+        out <- i*factor
+    }
+}
+func Consumer(in <-chan int) { // 消费者
+    for v := range in {
+        fmt.Println(v)
+    }
+}
+func main() {
+    ch := make(chan int, 64) // 成果队列
+    go Producer(3, ch) // 生成 3 的倍数的序列
+    go Producer(5, ch) // 生成 5 的倍数的序列
+    go Consumer(ch)    // 消费 生成的队列
+    // 运行一定时间后退出
+    time.Sleep(5 * time.Second)
+}
+开启了2个Producer生产流水线，分别用于生成3和5的倍数的序列。然后开启1个Consumer消费者线程，打印获取的结果。在main函数休眠一定的时间来让生产者和消费者工作一定时间。也可让main函数保持阻塞状态不退出，只有当输入Ctrl-C时才真正退出程序：
+
+func main() {
+    ch := make(chan int, 64) // 成果队列
+    go Producer(3, ch) // 生成 3 的倍数的序列
+    go Producer(5, ch) // 生成 5 的倍数的序列
+    go Consumer(ch)    // 消费 生成的队列
+    // Ctrl+C 退出
+    sig := make(chan os.Signal, 1)
+    signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+    fmt.Printf("quit (%v)\n", <-sig)
+}
+示例中有2个生产者且之间并无同步事件，它们是并发的。因此消费者输出的结果序列的顺序是不确定的。
+
+ 
+
+八.  Pub/Sub 模式
+
+发布订阅模式是一种消息通知模式，发布者发送消息，订阅者接收消息。每条消息都会传送给多个订阅者，发布者通常不知道、也不关心哪一个订阅者正在接收主题消息。订阅者和发布者可在运行时动态添加，是一种松散的耦合关系，这使得系统的复杂性可以随时间的推移而增长。像天气预报之类的应用就可以应用这个并发模式。
+
+Go 示例：
+
+
+
+/** Pub/Sub */
+
+type Subscriber struct {
+
+    in     chan interface{}
+
+    id     int
+
+    topic  string
+
+    stop   chan struct{}
+
+}
+
+func (s *Subscriber) Close() {
+
+    s.stop <- struct{}{}
+
+    close(s.in)
+
+}
+
+func (s *Subscriber) Notify(msg interface{}) (err error) {
+
+    defer func() {
+
+        if rec := recover(); rec != nil {
+
+            err = fmt.Errorf("%#v", rec)
+
+        }
+
+    }()
+
+    select {
+
+       case s.in <-msg:
+
+       case <-time.After(time.Second):
+
+        err = fmt.Errorf("Timeout\n")
+
+    }
+
+    return
+
+}
+
+func NewSubscriber(id int) SubscriberImpl {
+
+    s := &Subscriber{
+
+        id: id,
+
+        in: make(chan interface{}),
+
+        stop: make(chan struct{}),
+
+    }
+
+    go func() {
+
+        for{
+
+          select {
+
+            case <-s.stop:
+
+                close(s.stop)
+
+                return
+
+            default:
+
+                for msg := range s.in {
+
+                fmt.Printf("(W%d): %v\n", s.id, msg)
+
+                }
+
+           }
+
+    }}()
+
+    return s
+
+}
+
+// 订阅者需要实现的方法
+
+type SubscriberImpl interface {
+
+    Notify(interface{}) error
+
+    Close()
+
+}
+
+// sub 订阅 pub
+
+func Register(sub Subscriber, pub *publisher){
+
+    pub.addSubCh <- sub
+
+    return
+
+}
+
+// pub 结果定义
+
+type publisher struct {
+
+    subscribers []SubscriberImpl         
+
+    addSubCh    chan SubscriberImpl
+
+    removeSubCh chan SubscriberImpl
+
+    in          chan interface{}
+
+    stop        chan struct{}
+
+}
+
+func NewPublisher () *publisher{// 实例化
+
+    return &publisher{
+
+        addSubCh: make(chan SubscriberImpl),
+
+        removeSubCh: make(chan SubscriberImpl),
+
+        in: make(chan interface{}),
+
+        stop: make(chan struct{}),
+
+    }
+
+}
+
+// 监听
+
+func (p *publisher) start() {
+
+    for {
+
+        select {
+
+        case msg := <-p.in:  // pub 发送消息
+
+            for _, sub := range p.subscribers{
+
+                _ = sub.Notify(msg)
+
+            }
+
+        // 移除指定 sub
+
+        case sub := <-p.removeSubCh:
+
+            for i, candidate := range p.subscribers {
+
+                 if candidate == sub {
+
+                   p.subscribers = append(p.subscribers[:i],p.subscribers[i+1:]...)
+
+                   candidate.Close()
+
+                   break
+
+                 }
+
+            }
+
+        case sub := <-p.addSubCh: // 增加一个 sub
+
+            p.subscribers = append(p.subscribers, sub)
+
+        case <-p.stop:  // 关闭 pub
+
+            for _, sub := range p.subscribers {
+
+                sub.Close()
+
+            }
+
+            close(p.addSubCh)
+
+            close(p.in)
+
+            close(p.removeSubCh)
+
+            return
+
+        }
+
+    }
+
+} 
+
+func main() { // 测试代码
+
+    pub := NewPublisher()
+
+    go pub.start()
+
+    sub1 := NewSubscriber(1)
+
+    Register(sub1, pub)
+
+    sub2 := NewSubscriber(2)
+
+    Register(sub2, pub)
+
+    commands:= []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+    for _, c := range commands {
+
+        pub.in <- c
+
+    }
+
+    pub.stop <- struct{}{}
+
+    time.Sleep(time.Second*1)
+
+}
+ 
+
+九.  分而治之
+
+严格来讲分而治之不算一种模式, 而是一种思想，它将一个大任务拆解为若干个小任务并行执行, 提高系统吞吐量.以下主要讲两个场景：Master-Worker模式, ForkJoin线程池.
+
+ 
+
+本章节以 Java示例讲解。
+
+
+
+
+1)  Master-Worker模式
+
+系统由两类进行协助工作: Master进程, Worker进程.Master负责接收与分配任务, Worker负责处理任务。当各个Worker处理完成后将结果返回给Master进行归纳与总结.
+
+
+
+假设一个场景, 需要计算100个任务, 并对结果求和, Master持有10个子线程.
+
+Master代码
+
+public class MasterDemo {
+
+   private ConcurrentLinkedQueue<TaskDemo> workQueue =new ConcurrentLinkedQueue<TaskDemo>();
+
+   private HashMap<String, Thread> workers = new HashMap<>();// 所有worker
+
+   // 每一个worker并行执行任务的结果
+
+    private ConcurrentHashMap<String, Object> resultMap = new ConcurrentHashMap<>();
+
+   public MasterDemo(WorkerDemo worker, int workerCount) {
+
+       // 每个worker对象都需要持有queue的引用, 用于领任务与提交结果
+
+       worker.setResultMap(resultMap);
+
+       worker.setWorkQueue(workQueue);
+
+       for (int i = 0; i < workerCount; i++) {
+
+          workers.put("子节点: " + i, new Thread(worker));
+
+       }
+
+    }
+
+    // 提交任务
+
+   public void submit(TaskDemo task) {
+
+       workQueue.add(task);
+
+   }
+
+   // 启动所有的子任务
+
+   public void execute(){
+
+       for (Map.Entry<String, Thread> entry : workers.entrySet()) {
+
+          entry.getValue().start();
+
+       }
+
+   }
+
+   // 判断所有的任务是否执行结束
+
+   public boolean isComplete() {
+
+      for (Map.Entry<String, Thread> entry : workers.entrySet()) {
+
+          if (entry.getValue().getState() != Thread.State.TERMINATED) {
+
+            return false;
+
+        }
+
+      }
+
+      return true;
+
+   }
+
+   // 获取最终汇总的结果
+
+   public int getResult() {
+
+      int result = 0;
+
+      for (Map.Entry<String, Object> entry : resultMap.entrySet()) {
+
+         result += Integer.parseInt(entry.getValue().toString());
+
+      }
+
+        return result;
+
+   }
+
+}
+
+ 
+
+Worker代码
+
+public class WorkerDemo implements Runnable{
+
+    private ConcurrentLinkedQueue<TaskDemo> workQueue;
+
+    private ConcurrentHashMap<String, Object> resultMap;
+
+    @Override
+
+    public void run() {
+
+       while (true) {
+
+         TaskDemo input = this.workQueue.poll();
+
+         if (input == null) {// 所有任务已经执行完毕
+
+           break;
+
+         }
+
+            int result = input.getPrice();// 模拟对task进行处理, 返回结果
+
+            this.resultMap.put(input.getId() + "", result);
+
+     System.out.println("任务执行完毕, 当前线程: "+ Thread.currentThread().getName());
+
+          }
+
+    }
+
+    public ConcurrentLinkedQueue<TaskDemo> getWorkQueue() {
+
+         return workQueue;
+
+    }
+
+    Public void setWorkQueue(ConcurrentLinkedQueue<TaskDemo> workQueue) {
+
+       this.workQueue = workQueue;
+
+    }
+
+    public ConcurrentHashMap<String, Object> getResultMap() {
+
+        return resultMap;
+
+    }
+
+    Public void setResultMap(ConcurrentHashMap<String, Object> resultMap) {
+
+      this.resultMap = resultMap;
+
+    }
+
+}
+
+public class TaskDemo {
+
+private int id;
+
+private String name;
+
+  private int price;
+
+  public int getId() {return id; }
+
+  public void setId(int id) {this.id = id; }
+
+  public String getName() {return name; }
+
+  public void setName(String name) {this.name = name; }
+
+  public int getPrice() {return price; }
+
+public void setPrice(int price) {this.price = price; }
+
+}
+
+主函数测试
+
+MasterDemo master = new MasterDemo(new WorkerDemo(), 10);
+
+for (int i = 0; i < 100; i++) {
+
+   TaskDemo task = new TaskDemo();
+
+   task.setId(i);
+
+   task.setName("任务" + i);
+
+   task.setPrice(new Random().nextInt(10000));
+
+   master.submit(task);
+
+} 
+
+master.execute();
+
+while (true) {
+
+  if (master.isComplete()) {
+
+     System.out.println("执行的结果为: " + master.getResult());
+
+     break;
+
+  }
+
+}
+
+ 
+
+2)  ForkJoin线程池
+
+JDK7之后引入的一个并行任务执行框架, 核心思想也是将任务分割为子任务,有可能子任务还是很大,还需进一步拆解,最终得到足够小的任务,将分割出来的子任务放入双端队列中,然后几个启动线程从双端队列中获取任务执行。子任务执行的结果放到一个队列里,另起线程从队列中获取数据,合并结果。
+
+
+
+假设需计算从0到20000000L的累加求和。CountTask继承自RecursiveTask，可携带返回值.每次分解大任务, 简单的将任务划分为100个等规模的小任务, 并使用fork()提交子任务.在子任务中通过THRESHOLD设置子任务分解的阈值, 如果当前需要求和的总数大于THRESHOLD, 则子任务需要再次分解,如果子任务可以直接执行, 则进行求和操作, 返回结果. 最终等待所有的子任务执行完毕, 对所有结果求和。
+
+ 
+
+public class CountTask extends RecursiveTask<Long>{
+
+   private static final int THRESHOLD = 10000; // 任务分解的阈值
+
+   private long start;
+
+   private long end;
+
+   public CountTask(long start, long end) {
+
+      this.start = start;
+
+      this.end = end;
+
+   }
+
+   public Long compute() {
+
+      long sum = 0;
+
+      boolean canCompute = (end - start) < THRESHOLD;
+
+      if (canCompute) {
+
+        for (long i = start; i <= end; i++) {
+
+          sum += i;
+
+        }
+
+      }else {// 分成100个小任务
+
+        long step = (start + end) / 100;
+
+        ArrayList<CountTask> subTasks = new ArrayList<CountTask>();
+
+        long pos = start;
+
+        for (int i = 0; i < 100; i++) {
+
+           long lastOne = pos + step;
+
+           if (lastOne > end) {
+
+             lastOne = end;
+
+           }
+
+           CountTask subTask = new CountTask(pos, lastOne);
+
+           pos += step + 1;
+
+           subTasks.add(subTask); // 将子任务推向线程池
+
+           subTask.fork();
+
+         }
+
+         for (CountTask task : subTasks) {
+
+            sum += task.join();// 对结果进行join
+
+         }
+
+      }
+
+      return sum;
+
+   }
+
+ 
+
+  public static void main(String[] args) throws ExecutionException, InterruptedException {
+
+      ForkJoinPool pool = new ForkJoinPool();
+
+      // 累加求和 0 -> 20000000L
+
+      CountTask task = new CountTask(0, 20000000L);
+
+      ForkJoinTask<Long> result = pool.submit(task);
+
+      System.out.println("sum result : " + result.get());
+
+  }
+
+}
+
+ForkJoin线程池使用一个无锁的栈来管理空闲线程, 如果一个工作线程暂时取不到可用的任务, 则可能被挂起。挂起的线程将被压入由线程池维护的栈中, 待将来有任务可用时, 再从栈中唤醒这些线程.
