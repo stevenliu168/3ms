@@ -1,0 +1,471 @@
+17.     string, char*, string::c_str
+
+通常使用std::string代替char*，可使用string::c_str()获得字符指针。
+
+l  不用考虑结尾的’\0’
+
+l  可以直接使用+, =, ==等运算符以及其它字符串操作函数
+
+l  不需要考虑内存分配操作，避免显式new/delete，以及由此导致的错误
+
+ 
+
+注：
+
+l  调用系统或其它第三方库的API时，针对已经定义好的接口，只能使用 char* 。但在调用接口之前都可使用string，在调用接口时使用string::c_str()获得字符指针。当在栈上分配字符数组当作缓冲区使用时，可以直接定义字符数组，不要使用string，也没必要使用类似 vector 等容器。
+
+l  为了保证程序的可移植性，不要保存string::c_str()的指针，而是在每次需要时直接调用。
+
+l  少数对性能要求非常高的代码中，为适配已有的只接受const char*类型入参的函数，可以临时保存 string::c_str()返回的指针。但必须严格保证string对象的生命周期长于所保存指针的生命周期，并且保证在所保存指针的生命周期内，string对象不会被修改。
+
+ 
+
+示例：
+
+std::string name = "demo";
+
+const char* text = name.c_str(); // 表达式结束以后，name的生命周期还在，指针有效
+
+ 
+
+std::string name = "demo";
+
+std::string test = "test";
+
+const char* text = (name + test).c_str(); // 表达式结束后+号产生的临时对象被销毁，指针无效
+
+ 
+
+18.     左值，右值
+
+在C++11中所有的值必属于左值、右值两者之一。可以取地址的、有名字的就是左值，反之，不能取地址的、没有名字的就是右值（将亡值或纯右值），函数的形参是lvalue（可取地址），其也可以是rvalue引用类型。
+
+ 
+
+举个例子: int a = b+c, a 就是左值，其有变量名为a，通过&a可以获取该变量的地址；
+
+表达式b+c、函数int func()的返回值是右值，在其被赋值给某一变量前，不能通过变量名找到它，＆(b+c)这样的操作则不会通过编译。
+
+右值引用和左值引用都是属于引用类型。无论是声明一个左值引用还是右值引用，都必须立即进行初始化。引用类型本身自己并不拥有所绑定对象的内存，只是该对象的一个别名。左值引用是具名变量值的别名，而右值引用则是不具名（匿名）变量的别名。
+
+左值引用通常不能绑定到右值，但常量左值引用是个“万能”的引用类型。它可以接受非常量左值、常量左值、右值对其进行初始化。不过常量左值所引用的右值在它的“余生”中只能是只读的。相对地，非常量左值只能接受非常量左值对其进行初始化。
+
+int &a = 2;     # 左值引用绑定到右值，编译失败
+
+int b = 2;        # 非常量左值
+
+const int &c = b;  # 常量左值引用绑定到非常量左值，编译通过
+
+const int d = 2;   # 常量左值
+
+const int &e = c;  # 常量左值引用绑定到常量左值，编译通过
+
+const int &b =2;  # 常量左值引用绑定到右值，编译通过
+
+ 
+
+右值值引用通常不能绑定到任何的左值，要想绑定一个左值到右值引用，通常需要std::move()将左值强制转换为右值，例如：
+
+int a;
+
+int &&r1 = c;                      # 编译失败
+
+int &&r2 = std::move(a);    # 编译通过
+
+ 
+
+右值引用的规则
+1)         C++11 增加了特殊的右值引用类型，用 T&& 表示
+
+2)         函数的重载决策中会区分左值引用和右值引用。右值优先匹配右值引用，一个临时对象是一个右值，可以匹配右值引用；
+
+3)         可以使用 std::move(exp) 或 static_cast<T&&>(exp) 强制生成右值引用
+
+l  std::move 只做了到右值引用的强制类型转换，不实际进行移动
+
+l  实际的移动操作由匹配的函数完成（如果存在的话），如移动构造或赋值
+
+
+Obj&& wrong_move() {
+
+        Obj obj;
+
+return std:move(obj); // 未定义的行为
+
+}
+
+Obj bad_move() {
+
+        Obj obj;
+
+return std:move(obj); // 禁止 NRVO
+
+}
+
+  
+
+19.     std::move语义
+
+并不移动任何东西，唯一功能是将一个左值强制转化为右值引用，继而可通过右值引用使用该值，以用于移动语义。本质是一个无条件static_cast，形参为左值类型，返回右值引用。
+
+ 
+
+1)     函数原型定义
+template <typename T>
+
+typename remove_reference<T>::type&& move(T&& t) {
+
+   return static_cast<typename remove_reference<T>::type&&>(t);
+
+}
+
+将对象的状态或所有权从一个对象转移到另一个对象，只是转移，没有内存搬迁或内存拷贝,可提高利用效率,改善性能。编译期计算，无运行时开销。
+
+原理：首先，通过右值引用传递模板实现，利用引用折叠原理将右值经过T&&传递类型保持不变还是右值，而左值经过T&&变为普通的左值引用，以保证模板可以传递任意实参，且保持类型不变（左值还是右值，需要进行类型推导）。然后通过static_cast<>进行强制类型转换返回T&&右值引用，static_cast<T>之所以能使用类型转换，是通过remove_refrence<T>::type模板移除T&&，T&的引用，获取具体类型T。
+
+示例：
+
+template<typename T>
+
+void f(T&& param);
+
+f(10); // 10是右值
+
+int x = 10;
+
+f(x);  // x是左值
+
+ 
+
+2)     操作说明
+l  可move的操作均为形参可接受右值引用的函数
+
+l  unique_ptr，调用move才可以赋值，赋值后原指针被置为空
+
+l  stl(std::array、std::vector等)、std::string等具有move构造和赋值的可使用move。使用比如vector::push_back等这类函数时,会对参数对象连数据也会复制.这就造成对象内存的额外创建,本意把参数push_back进去就行。而通过std::move，可避免不必要的拷贝操作
+
+l  对象没有move构造和赋值则退化为copy.
+
+l  move会阻碍 RVO返回值优化；
+
+ 
+
+std::string s0 = "hello";
+
+std::string str = s0 + " world.";
+
+s0 + " world." 的结果是个临时对象, 这个表达式是个右值，那么 str 对象的构造函数在 C++11 中，会优先调用 Move Ctor .
+
+ 
+
+3)     移动构造和移动赋值
+如果需要某个类支持移动操作，需要实现移动构造和移动赋值操作符，两者都具有移动语义，应该同时出现或者禁止。
+
+// 同时出现
+
+class AA {
+
+public:    ...    
+
+AA(AA&&);    
+
+AA& operator=(AA&&);   
+
+...
+
+};
+
+// 同时禁止
+
+class AA {
+
+public:    
+
+AA(AA&&) = delete;    
+
+AA& operator=(AA&&) = delete;
+
+};
+
+
+
+ 
+
+4)     禁止操作const对象
+const对象不能修改，自然无法移动。std::move 会把对象转换成右值引用类型，极少有类型会定义以const右值引用为参数的移动构造函数和赋值操作符，因此实际往往退化成对象拷贝而不是对象移动，带来了性能上的损失。
+
+std::string g_string; std::vector<std::string> g_stringList;
+
+void func() {    
+
+const std::string myString = "String content";    
+
+g_string = std::move(myString);                   //复制    
+
+const std::string anotherString = "Another string content";    
+
+g_stringList.push_back(std::move(anotherString));     // 复制
+
+}
+
+ 
+
+注：如果不需要拷贝/移动函数，请明确禁止。
+
+ 
+
+20.     类型推导auto,decltype
+
+1)      auto
+auto的自动类型推导，用于从初始化表达式中推断出变量的数据类型。通过auto的自动类型推导，可以大大简化编程工作
+
+ 
+
+l  auto 可以避免编写冗长、重复的类型名，也可保证定义变量时初始化
+
+l  auto 类型推导规则复杂，需要仔细理解
+
+l  如能使代码更清晰，继续使用明确的类型，且只在局部变量使用 auto
+
+ 
+
+如果没有注意 auto 类型推导时忽略引用，可能引入难以发现的性能问题:
+
+std::vector<std::string> v;
+
+auto s1 = v[0];  // auto 推导为 std::string，拷贝 v[0]
+
+使用auto定义接口，如头文件中的常量，可能因为修改了值，而导致类型发生变化
+
+ 
+
+推导规则复杂示例：
+
+auto a = 3;            // int
+
+const auto ca = a;     // const int
+
+const auto& ra = a;   // const int&
+
+auto aa = ca;          // int, 忽略 const 和 reference
+
+auto ila1 = { 10 };     // std::initializer_list<int>
+
+auto ila2{ 10 };        // std::initializer_list<int>
+
+auto&& ura1 = x;      // int&
+
+auto&& ura2 = ca;     // const int&
+
+auto&& ura3 = 10;    // int&&
+
+const int b[10];
+
+auto arr1 = b;         // const int*
+
+auto& arr2 = b;       // const int(&)[10]
+
+ 
+
+2)      decltype
+为解决复杂的类型声明而使用的关键字，称作decltype类型说明符。有点像auto的反函数，auto可以让你声明一个变量，而decltype则可以从一个变量或表达式中得到类型
+
+作用于变量、表达式及函数名。
+
+l  作用于变量直接得到变量的类型；
+
+l  作用于表达式，结果是左值的表达式得到类型的引用，结果是右值的表达式得到类型；decltype不会去真的求解表达式的值
+
+l  作用于函数名会得到函数类型，不会自动转换成指针。
+
+示例
+
+using FuncType = int(int &, int);    // 声明了一个函数类型
+
+int add_to(int &des, int ori);       // 下面的函数就是上面的类型
+
+decltype(add_to) *pf = add_to;    //使用decltype获得函数add_to的类型
+
+int a = 4;
+
+pf(a, 2);   // 通过函数指针调用add_to
+
+ 
+
+21.     类型后置
+
+常用的函数返回类型一般是在前面即void function();。但是C++11新增了语法，函数返回类型声明后置，在函数名和参数列表后面返回指定类型。C++函数返回类型后置一般用于模板函数中，可以提前返回编译器还没编译开始的类型。
+
+//编译器在遇到f3的参数列表前，T和U还不在作用域内，因此在参数列表后使用decltypetemplate<typename T, typename U>
+
+auto f3(T t, U u)->decltype(T*U)     //decltype强制类型转换，转换为(T*U)类型
+
+{ return t*u;}
+
+ 
+
+返回类型后置语法，将decltype和auto结合起来完成返回值类型的推导
+
+在原来放返回值类型的位置写auto，在函数声明结束以后接一个'->'再跟着写函数的返回值类型。两种方式的效果是一样的。
+
+ 
+
+一般情况下，当函数要返回多个数据时，会选择将数据封装在类（或结构体）中返回，或者直接返回一个指针。这两种方式要么麻烦，要么没有办法取得数据的数量。其实真正的需求就是返回一个数组（可以计算维度的）指针。这种方法是存在的：
+
+int (*getResultArray(int mode))[10];
+
+通过上面的形式，声明了一个返回包含10个整数的数组的指针。可以像数组一样使用：
+
+auto arr = getResultArray(1);
+
+cout << sizeof(*arr)/sizeof(**arr) << endl; //可以正确计算维度。
+
+ 
+
+有经验的程序员会这么做：
+
+typedef int arr10[10];
+
+arr10* getResultArray(int mode)
+
+C++11增加了返回类型后置以后:  auto getResultArray(int mode)->int(*)[10]；
+
+ 
+
+22.     强制类型转换
+
+类型转化机制可分为隐式类型转换和显示类型转化（强制类型转换）。
+
+隐式类型转换较常见，在混合类型表达式中经常发生。避免类型转换，我们在代码的类型设计上应该考虑到每种数据的数据类型是什么，而不是应该过度使用类型转换来解决问题。
+
+示例：
+
+int i=3;
+
+double j = 3.1;
+
+i+j;//i会被转换成double类型，后才做加法运算。
+
+ 
+
+四种强制类型转换操作符：static_cast、dynamic_cast、const_cast、reinterpret_cast，尽量少使用转型操作，尤其是dynamic_cast，耗时较高，会导致性能的下降，尽量使用其他方法替代。
+
+1)     static_cast
+编译时期的静态类型检查: static_cast < type-id > ( expression )
+
+相当于传统C语言的强制转换，运算符把expression转换为type-id类型，用来强迫隐式转换如non-const对象转为const对象，编译时检查（指针越界、类型检查），其操作数相对是安全的。用于非多态的转换，可以转换指针及其他，但无运行时类型检查来保证转换的安全性。主要有如下几种用法：
+
+ 
+
+①用于类层次结构中基类（父类）和派生类（子类）之间指针或引用的转换
+
+进行上行转换是安全的；进行下行转换时，由于没有动态类型检查，所以是不安全的
+
+②用于基本数据类型之间的转换，如把int转换成char，把int转换成enum
+
+③把空指针转换成目标类型的空指针
+
+④把任何类型的表达式转换成void类型
+
+注意：static_cast不能转换掉expression的const、volatile、或__unaligned属性
+
+示例：
+
+int e = 10;
+
+const int f = static_cast<const int>(e);//将int型转换成const int
+
+const int g = 20;
+
+int *h = static_cast<int*>(&g);//编译错误，不能转换掉g的const属性
+
+ 
+
+2)     dynamic_cast
+运行时的检查, 要尽量避免使用。用于在集成体系中进行安全的向下转换downcast(基类指针/引用->派生类指针/引用). 源类中必须要有虚函数，保证多态，才能使用dynamic_cast<source>(expression).
+
+ 
+
+dynamic_cast 是4个转换中唯一的RTTI操作符，提供运行时类型检查，如果不能转换返回NULL。dynamic_cast的出现一般说明基类和派生类设计出现了问题，派生类破坏了基类的契约，不得不通过 dynamic_cast 转换到子类进行特殊处理，建议改善类的设计，避免使用dynamic_cast来进行转换。
+
+ 
+
+转换方式： 
+
+dynamic_cast< type* >(e)    type是一个类类型且必须是一个有效的指针
+
+dynamic_cast< type& >(e)   type是一个类类型且必须是一个左值
+
+dynamic_cast< type&& >(e)  type必须是一个类类型且必须是一个右值
+
+ 
+
+如果一条dynamic_cast语句的转换目标是指针类型并且失败了，则结果为0。如果转换目标是引用类型并且失败，则dynamic_cast运算符将抛出一个std::bad_cast异常(定义在typeinfo标准库头文件中)。e也可是一个空指针，结果是所需类型的空指针。
+
+void f(const Base &b){
+
+ try{
+
+   const Derived &d = dynamic_cast<const Base &>(b);  //使用b引用的Derived对象
+
+ }
+
+ catch(std::bad_cast){
+
+   //处理类型转换失败的情况
+
+ }
+
+}
+
+ 
+
+3)     const_cast
+移除对象的 const和volatile性质,使其可以修改;会破坏数据的不变性，建议少用。
+
+// 不好的例子
+
+const int i = 1024;
+
+int* p = const_cast(&i);
+
+*p = 2048; // 未定义行为
+
+ 
+
+4)     reinterpret_cast
+用于转换不相关类型,尝试用reinterpret_cast将一种类型强制转换另一种类型，这破坏了类型的安全性与可靠性，是一种不安全的转换。不同类型之间尽量避免转换。
+
+
+ . . . . . .. 
+
+
+
+附：
+
+SOLID原则精解之开放封闭原则 OCP
+
+http://3ms.huawei.com/km/blogs/details/8392135?l=zh-cn
+
+SOLID原则精解之接口隔离原则 ISP
+
+http://3ms.huawei.com/km/blogs/details/8472817?l=zh-cn
+
+【软件系统设计之专题一】 - 可信构架之道
+
+http://3ms.huawei.com/km/blogs/details/8777275?l=zh-cn
+
+【软件系统设计之专题二】 - 高并发之并行模式
+
+http://3ms.huawei.com/km/blogs/details/8847021?l=zh-cn
+
+【软件系统设计之专题四】 - 调度策略及算法
+
+http://3ms.huawei.com/km/blogs/details/9088879?l=zh-cn
+
+【软件系统设计之专题五】 - 重构设计中的常见问题
+
+http://3ms.huawei.com/km/blogs/details/10218413
+C++ 软件开发必备知识整编（2）
+
+http://3ms.huawei.com/km/blogs/details/10293585?l=zh-cn
