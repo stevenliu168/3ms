@@ -1,0 +1,668 @@
+31.1 volatile常用场景
+1).中断服务程序中修改的供其它程序检测的变量需加volatile
+
+2).多任务环境下各个任务之间共享的标志应加volatile
+
+3).存储器映射的硬件寄存器通常也要加volatile，因每次对它的读写都可能有不同意义；
+
+另外，以上几种情况常要同时考虑数据的完整性(相互关联的几个标志读了一半被打断重写)，在1)中可通过关中断来解决；2)中可以禁止任务调度；3)依靠硬件的良好设计。
+
+ 
+
+31.2 编译器优化
+内存访问速度远不及CPU处理速度，为提高机器整体性能，在硬件上引入硬件高速缓存Cache，加速对内存的访问。另外，现代CPU中指令执行并不一定严格按照顺序执行，没有相关性的指令可乱序执行，以充分利用CPU的指令流水线，提高执行速度。
+
+编译器优化常用方法：将内存变量缓存到寄存器，调整指令顺序充分利用CPU指令流水线，常见的是重新排序读写指令。由编译器优化或硬件重排序引起的问题的解决办法是在从硬件(或其他处理器)的角度看必需以特定顺序执行的操作之间设置内存屏障。
+
+void Barrier(void)
+
+这个函数通知编译器插入一个内存屏障，但对硬件无效，编译后的代码会把当前CPU寄存器中的所有修改过的数值存入内存，需要这些数据的时候再重新从内存中读出。
+
+ 
+
+31.3 volatile指针
+指针和普通变量一样，有时也有变化程序的不可控性。常见例子：子中断服务子程序修改一个指向一个 buffer 的指针时，必须用 volatile 来修饰这个指针。 和const类似，const有常量指针和指针常量，volatile 也有相应的概念：
+
+volatile char* vpch;
+
+char* volatile pchv;
+
+ 
+
+指针是一种普通的变量，从访问上没有什么不同于其他变量的特性。其保存的数值是个整型数据，和整型变量不同的是，这个整型数据指向的是一段内存地址。
+
+ 
+
+说 明:
+
+1) 可把一个非volatile int赋给volatile int，但不能把非volatile对象赋给一个volatile对象
+
+2) 除了基本类型外，对用户定义类型也可以用volatile类型进行修饰
+
+3) C++中一个有volatile标识符的类只能访问它接口的子集，一个由类的实现者控制的子集。也只能用const_cast来获得对类型接口的完全访问。此外，volatile像const一样会从类传递到它的成员。
+
+ 
+
+32. std::thread线程
+
+std::thread使用std的thread实例化一个线程对象。
+
+1).默认构造函数，创建一个空的 thread 执行对象。
+
+2).初始化构造函数，创建一个 thread对象，该 thread对象可被 joinable，新产生的线程会调用 fn 函数，该函数的参数由 args 给出。
+
+3).拷贝构造函数(被禁用)，意味着 thread 不可被拷贝构造。
+
+4). move 构造函数，调用成功之后 x 不代表任何 thread 执行对象。 
+
+注：可被joinable的thread对象必须在销毁之前被主线程join或将其设置为detached.
+
+代码片段参考：
+
+//栈上
+
+thread t1(show);   //根据函数初始化执行
+
+thread t2(show);
+
+//线程数组 
+
+thread th[2]{thread(show), thread(show) };
+
+array<thread, 3> threads = { thread(show), thread(show), thread(show) }; 
+
+//堆上
+
+thread *pt1(new thread(show));
+
+thread *pt2(new thread(show));
+
+//线程指针数组
+
+thread *pth(new thread[2]{thread(show), thread(show) });
+
+ 
+
+32.1 join & detach
+thread::join()让主线程等待直到该子线程执行结束，线程对象执行了join后就不再joinable，所以只能调用join一次。
+
+ 
+
+thread::detach
+
+用来和线程对象分离，这样线程可独立执行，不过由于没有thread对象指向该线程而失去了对它的控制，当对象析构时线程会继续在后台执行，但是当主程序退出时并不能保证线程能执行完。如果没有良好的控制机制或者这种后台线程比较重要，最好不用detach而应该使用join。
+
+detach脱离主线程的绑定，子线程会成为孤儿线程，线程间将无法通信。主线程挂了，子线程不报错，子线程执行完自动退出
+
+ 
+
+32.2 move 赋值操作
+thread& operator= (thread&& rhs) noexcept;
+
+thread& operator= (const thread&) = delete;// thread对象不可被拷贝
+
+示例：
+
+#include<thread>
+
+#include<chrono>
+
+using namespace std;
+
+void fun1(int n) { //初始化构造函数
+
+    cout << "Thread " << n << " executing\n";
+
+    n += 10;
+
+    this_thread::sleep_for(chrono::milliseconds(10));
+
+} 
+
+void fun2(int & n) {//拷贝构造函数
+
+    cout << "Thread " << n << " executing\n";
+
+    n += 20;
+
+    this_thread::sleep_for(chrono::milliseconds(10)); 
+
+} 
+
+int main()  { 
+
+    int n = 0; 
+
+    thread t1;               //t1不是一个thread 
+
+    thread t2(fun1, n + 1);  //按照值传递 
+
+    t2.join(); 
+
+    cout << "n=" << n << '\n'; 
+
+    n = 10; 
+
+    thread t3(fun2, ref(n)); //引用 
+
+    thread t4(move(t3));     //t4执行t3，t3被销毁
+
+    t4.join(); 
+
+    cout << "n=" << n << '\n'; 
+
+    return 0; 
+
+} 
+
+运行结果:
+
+Thread 1 executing
+
+n=0
+
+Thread 10 executing
+
+n=30
+
+ 
+
+32.3 lambda与多线程
+代码参考示例：
+
+#include<thread>
+
+using namespace std;
+
+int main() {
+
+    auto fun = [](const char *str) {cout << str << endl; };
+
+    thread t1(fun, "hello world!");
+
+    thread t2(fun, "hello beijing!");
+
+    return 0;
+
+}
+
+ 
+
+32.4线程安全和非安全
+线程安全指多线程访问时，采用加锁机制，当一个线程访问该类的某个数据时，进行保护，其他线程不能进行访问直到该线程读取完，其他线程才可使用，不会出现数据不一致或数据污染。
+
+ 
+
+线程非安全指未提供数据访问保护，可能多个线程先后更改数据最终所得为脏数据。
+
+以下参考代码线程非安全：
+
+#include<thread>
+
+using namespace std;
+
+const int N = 100000000;
+
+int num = 0;
+
+void run() {
+
+    for (int i = 0; i < N; i++){
+
+        num++;
+
+    }
+
+}
+
+int main() {
+
+    clock_t start = clock();
+
+    thread t1(run);
+
+    thread t2(run);
+
+    t1.join();
+
+    t2.join();
+
+    clock_t end = clock();
+
+    cout << "num=" << num << ",用时 " << end - start << " ms" << endl;
+
+    return 0;
+
+}
+
+线程安全示例：使用原子变量
+
+#include<atomic>
+
+atomic_int num{ 0 };//无线程冲突，线程安全 
+
+ 
+
+33.  struct,union,bitfield
+
+33.1 struct和union
+结构体struct：将不同类型的数据组合成一个整体
+
+共同体union：不同类型的几个变量共同占用一段内存
+
+1）结构体中的每个成员都有自己独立的地址，它们是同时存在的
+
+共同体中的所有成员占用同一段内存，不能同时存在
+
+2）sizeof(struct)是内存对齐后所有成员长度的总和，sizeof(union)是内存对齐后最长数据成员的长度。
+
+ 
+
+33.2 union与bit field
+用法示例：如果仅仅使用状态位,可以使用位域和联合一起来使用，但需要注意字节序问题。
+
+union BF {    
+
+unsigned short bf;     //16bit
+
+struct {
+
+unsigned char c1:2;
+
+unsigned char c2:2;
+
+unsigned char c3:4;
+
+unsigned char c4:8;
+
+}st;
+
+BF()  {
+
+bf =0x1b0d;
+
+}
+
+};
+
+在BF联合体构造方法中 ,bf =0x1b0d .则bf的二进制形式为：0001 1011 0000 1101.
+
+对于64bit  x64 小端机器，st结构成员应该从c1 ->c4  从由右向左对应。则：
+
+unsigned char c1:2= 0x01;        //十进制：1
+
+unsigned char c2:2=0x11;        //十进制： 3
+
+unsigned char c3:4=0x0000       //十进制：0
+
+unsigned char c4:8=0x 0001 1011  //十进制：27
+
+在BF联合里sizeof(bf) ==sizeof(st) 长度相同，操作st就等同于操作bf的位域。
+
+ 
+
+说明:结构体中定义的成员默认是public，而C++类中的成员默认是private的,但可声明public,private 和 protected；结构体和类对象都必须使用new创建;
+
+ 
+
+34.     内存资源及管理
+
+内存被分成五个区：栈、堆、静态存储区、常量区、代码区。
+
+
+
+栈：存放函数的参数和局部变量，编译器自动分配和释放。栈属于计算机系统的数据结构，进栈出栈有相应的计算机指令支持，而且分配专门的寄存器存储栈的地址，效率高，内存空间是连续的，但栈的内存空间有限。
+
+ 
+
+堆：需要程序员手动分配和释放（new,delete），属于动态分配方式。内存空间几乎没有限制，内存空间不连续，因此会产生内存碎片。操作系统有一个记录空间内存的链表，当收到内存申请时遍历链表，找到第一个空间大于申请空间的堆节点，将该节点分配给程序，并将该节点从链表中删除。一般，系统会在该内存空间的首地址处记录本次分配的内存大小，用于delete释放该内存空间。
+
+ 
+
+全局/静态存储区：
+
+全局变量，静态变量分配到该区，到程序结束时由系统自动释放，包括DATA段(全局初始化区)与BSS段(全局未初始化段Block Started by Symbol)。
+
+未初始化的全局变量和静态变量存放在BSS段，在程序执行前BSS段自动清零。BSS节在程序的二进制映象文件中并不存在,即不占用磁盘空间而只在运行时占用内存空间,所以如果全局变量和静态变量未初始化那么其可执行文件要小很多。
+
+ 
+
+常量区：
+
+分为常变量和字符串常量，一经初始化，不可修改。静态存储内的常变量是全局变量，与局部常变量不同，区别在于局部常变量存放于栈，实际可间接通过指针或者引用进行修改，而全局常变量存放于静态常量区则不可以间接修改。字符串常量,一般都放在只读数据段中，不允许修改，字符串常量的名称即为它本身，属于常变量。
+
+ 
+
+代码段(code segment/text segment):
+
+通常是指用来存放程序执行代码的一块内存区域,存放程序体的二进制代码,比如写的函数。这部分区域的大小在程序运行前就已确定,并且内存区域通常属于只读,某些架构也允许代码段为可写,即允许修改程序。在代码段中,也有可能包含一些只读的常数变量,例如字符串常量等,但一般都是放在只读数据段中。
+
+ 
+
+34.1 new,delete与malloc,free
+均属动态内存分配，1）malloc对开辟的空间大小严格指定，而new只需对象名；2）new为对象分配空间时，调用对象的构造函数，delete调用对象的析构函数。3).malloc/free是库函数而不是运算符，不能把执行构造和析构函数的功能强加于malloc/free.
+
+ 
+
+对于非内部数据类型的对象而言，对象在创建的同时要自动执行构造函数，对象在消亡之前要自动执行析构函数。由于malloc/free 是库函数而不是运算符，不在编译器控制权限之内，不能够把执行构造函数和析构函数的任务强加于 malloc/free。而new是运算符，在编译器控制范围之内，调用new时，从堆中申请内存并为内存调用构造函数.
+
+ 
+
+先析构后再将内存归还系统，delete只调用一次析构函数，用于单个对象释放。而delete[]会调用每个成员的析构. new分配的需用delete释放，用new[]分配的内存用delete[]释放。
+
+示例：
+
+const int MAX_ARRAY_SIZE = 100;
+
+int* numberArray = new int[MAX_ARRAY_SIZE];
+
+... delete[] numberArray;
+
+numberArray = NULL;
+
+ 
+
+34.2 brk，mmap，munmap
+操作系统角度，进程分配内存有两种方式，分别由两个系统调用完成：brk和mmap(不考虑共享内存)。malloc/free函数分配释放内存，底层由brk，mmap，munmap系统调用实现。
+
+l  brk是将数据段(.data)的最高地址指针_edata往高地址推
+
+l  mmap是在进程的虚拟地址空间中找一块空闲的虚拟内存(堆和栈中间，称为文件映射区域的位置)。
+
+两种方式分配的都是虚拟内存，没有分配物理内存。当第一次访问已分配的虚拟地址空间时，发生缺页中断，操作系统负责分配物理内存，然后建立虚拟内存和物理内存之间的映射关系。
+
+ 
+
+34.3 内存泄漏问题
+指己动态分配的堆内存由于某种原因程序未释放或无法释放，造成系统内存的浪费，导致程序运行速度减慢甚至系统崩溃等严重后果。
+
+1）类的构造函数和析构函数中new和delete没有配套
+
+2）在释放对象数组时没有使用delete[]，使用了delete
+
+3）没有将基类的析构函数定义为虚函数，当基类指针指向子类对象时，如果基类的析构函数不是virtual，那子类的析构将不被调用，子类的资源没有正确释放，造成内存泄露
+
+4）没有正确的清除嵌套的对象指针
+
+5）指向对象的指针数组不等同于对象数组，数组中存放的是指向对象的指针，不仅要释放每个对象的空间，还要释放每个指针的空间，delete []p只释放了每个指针，但并没有释放对象的空间，正确的做法是通过一个循环，将每个对象释放，然后再把指针释放。
+
+6）缺少拷贝构造函数
+
+两次释放相同内存是一种错误做法，同时可能会造成堆的崩溃。按值传递会调用拷贝构造函数，引用传递不会。如果没定义拷贝构造，那编译器就会调用默认的拷贝构造函数，会逐个成员拷贝来复制数据成员，复制指针被定义为将一个变量的地址赋给另一个变量。这种隐式的指针复制使得两个对象拥有指向同一个动态分配的内存空间的指针。当释放第一个对象，析构函数就会释放与该对象有关的动态分配的内存空间。而释放第二个对象时，它的析构函数会释放相同内存，这样是错误的。所以，如果一个类里面有指针成员变量，要么显示的写拷贝构造和重载赋值运算符，要么禁用。
+
+7）野指针，指向被释放的或者访问受限内存的指针，造成野指针的原因：
+
+l  指针变量没有被初始化(如果值不定，可以初始化为NULL)
+
+l  指针被free或delete后，没有置为NULL, free和delete只把指针所指向的内存给释放掉，并没有把指针本身干掉，此时指针指向的是“垃圾”内存,释放后的指针应该被置为NULL
+
+l  指针操作超越了变量的作用范围，比如返回指向栈内存的指针就是野指针
+
+………
+
+ 
+
+检测内存泄漏的关键是检查malloc/new和free/delete是否匹配，一些工具也是这个原理。要做到这点，就是利用宏或者钩子，在用户程序与运行库之间加了一层，用于记录内存分配情况。Linux平台下的内存泄漏检测工具有mtrace，valgrind等。
+
+ 
+
+34.4 栈溢出问题
+1）函数调用层次过深,每调用一次,函数的参数、局部变量等信息就压一次栈
+
+2）局部变量体积太大
+
+代码中存在死循环或循环产生过多重复的对象实体
+
+ 
+
+解决办法：
+
+l 增加栈内存大小
+
+l 使用堆内存，有多种方法可直接把数组定义改成指针,然后动态申请内存;也可把局部变量变成全局变量,一个偷懒办法是直接在定义前加个static,变成静态变量(实质是全局变量).
+
+ 
+
+34.5 内存对齐原则
+非空类的大小与类中非静态成员变量和虚函数表的多少有关，非静态成员变量的大小与编译器内存对齐的设置有关。成员变量在类中的内存存储并不一定连续，它是按照编译器的设置，按照内存块来存储，这个内存块大小的取值，就是内存对齐。
+
+ 
+
+结构体内的成员按自身长度自对齐，所谓自对齐是指该成员的起始地址必须是它自身长度的整数倍。如int只能以0,4,8这类地址开始。结构体总大小为结构体的有效对齐值的整数倍(默认以结构体中最长的成员长度为有效值的整数倍，用#pragrma pack(n)指定时，以n和结构体中最长的成员长度中较小者为其值）。即sizeof值必须是其内部最大成员的整数倍，不足的要补齐。 
+
+示例参考:
+
+class A{
+
+    char c;
+
+    int a;
+
+    char d;
+
+}; // 输出：12
+
+cout << sizeof(A) << endl;
+
+class B{
+
+    char c;
+
+    char d;
+
+    int a;
+
+};
+
+cout << sizeof(B) << endl; // 输出：8
+
+ 
+
+内存对齐原因：
+
+l  平台原因(移植)：不是所有的硬件平台都能访问任意地址上的任意数据的,某些硬件平台只能在某些地址处取某些特定类型的数据，否则抛出硬件异常。
+
+l  性能原因：经过内存对齐后，CPU的内存访问速度可大大提升。
+
+ 
+
+34.6 ptmalloc、tcmalloc和jemalloc
+C++使用较多的内存分配器有ptmalloc、tcmalloc和jemalloc。分配器处于内核和用户程序之间，响应用户的分配请求，向操作系统申请内存，​后将内存返回用户程序。为保证高效，一般都会预先分配一块大于用户请求的内存，然后管理这块内存。用户释放掉的内存也不是立即返回给操作系统，分配器会管理这些释放掉的空闲空间以应对用户以后的分配请求。
+
+ 
+
+1)       ptmalloc2即当前使用的glibc malloc版本，其内存块采用chunk管理，且将大小相似的chunk用链表管理，一个链表被称为一个bin。前64个bin里，相邻bin内的chunk大小相差8字节，称为small bin，后面的是large bin，large bin里的chunk按先大小，再最近使用的顺序排列，每次分配都找一个最小的能使用的chunk，结构如下所示。
+
+http://image.huawei.com/tiny-lts/v1/images/3d39a274ccbb64373356_911x278.png@900-0-90-f.png
+
+chunk指针指向开始的地址，mem指针指向用户内存块开始的地址。A=1 为非主分区分配，A=0 为主分区分配；M=1为mmap映射区域分配，M=0为heap区域分配。p=0表示前一个chunk为空闲，prev_size才有效​。p=1表示前一个chunk正在使用，prev_size无效，p主要用于内存块的合并操作。ptmalloc分配的第一个块总是将p设为1,以防止程序引用到不存在的区域。​
+
+注：
+
+l  后分配的内存先释放，因ptmalloc收缩内存是从top chunk开始，如top chunk相邻chunk不能释放，top chunk以下的都无法释放，防止内存泄露
+
+l  ptmalloc不适用于管理长生命周期的内存，特别是持续不定期分配和释放​长生命周期的内存，这将导致ptmalloc内存暴增
+
+l  多线程分阶段执行的程序不适合用ptmalloc，这种程序的内存更适合用内存池管理
+
+l  尽量减少程序的线程数和避免频繁分配/释放内存。频繁分配会导致锁的竞争，最终导致非主分配区增加，内存碎片增高，并且性能降低
+
+l  防止程序分配过多内存，或由于Glibc内存暴增，导致系统内存耗尽
+
+ 
+
+2)       Tcmalloc是Google开源的一个内存管理库，已在chrome、safari等知名软件中运用，可以代替C和C++默认内存分配器，提供更高的扩展效率和更好的并行性支持。tcmalloc特别对多线程做了优化，对于小对象的分配基本上不存在锁竞争，而大对象使用了细粒度、高效的自旋锁。分配给线程的本地缓存，在长时间空闲情况下会被回收，供其他线程使用，这样提高了在多线程下的内存利用率，而这一点ptmalloc2是做不到的。
+
+http://5b0988e595225.cdn.sohucs.com/images/20200311/813dca42787d47d5a792a64f34f8c25e.jpeg
+
+线程级cache和进程级cache实际就是一个多级的空闲块列表。一个Free List以大小为k bytes倍数的空闲块进行分配，包含n个链表，每个链表存放大小为nk bytes的空闲块。在tcmalloc中，<=32KB的对象被称作小对象，>32KB的是大对象。在小对象中，<=1024bytes的对象以8n bytes分配，1025<size<=32KB的对象以128n bytes大小分配，比如：要分配20bytes则返回的空闲块大小是24bytes的，这样在<=1024的情况下最多浪费7bytes，>1025则浪费127bytes。而大对象是以页大小4KB进行对齐的，最多会浪费4KB - 1 bytes。下图是一个基本的free list的示意图：
+
+
+
+对于大内存分配(大于8个分页, 即32K)，tcmalloc直接在中央堆里分配。中央堆的内存管理以分页为单位，同样按大小维护了256个空闲空间链表，前255个分别是1个分页、2个分页到255个分页的空闲空间，最后一个是更多分页的小的空间。这里的空间如果不够用，就直接从系统申请。
+
+http://image.huawei.com/tiny-lts/v1/images/0b509274ccbc5c7d3700_476x300.gif@900-0-90-f.gif
+
+ 
+
+3)       Jemalloc由facebook推出，最早的时候是freebsd的libc malloc实现。在firefox、facebook服务器各种组件中有大量使用。Jemalloc支持和tcmalloc类似的线程本地缓存，避免锁的竞争，需要2%的额外开销。Jemalloc 把内存分配分为了三个部分，第一部分类似tcmalloc，是分别以8字节、16字节、64字节等分隔开的small class；第二部分以分页为单位，等差间隔开的large class；然后就是huge class。内存块的管理也通过一种chunk进行，一个chunk的大小是2^k (默认4 MB)。通过这种分配实现常数时间地分配small和large对象，对数时间(红黑树)地查询huge对象的meta
+
+ 
+
+在多线程环境使用tcmalloc和jemalloc效果非常明显。当线程数量固定，不会频繁创建退出的时候，可以使用jemalloc；反之使用tcmalloc可能是更好的选择。
+
+ 
+
+
+35.  new,placement new
+
+35.1 new 操作
+new operator就是new操作符，假如A是一个类，那么A * a=new A;实际上执行如下3个过程。所能改变的只是第一步行为，如何为对象分配内存，可重载这个函数。
+
+1）调用operator new分配内存，operator new (sizeof(A))
+
+2）调用构造函数生成类对象，A::A()，初始化所分配的内存
+
+3）返回相应指针，指向对象的内存
+
+ 
+
+分配内存这一操作由operator new(size_t)来完成，如果类A重载了operator new，那么将调用A::operator new(size_t)，否则调用全局::operator new(size_t)，后者由C++默认提供。
+
+ 
+
+示例：
+
+string *pa = new string("memory managerment");
+
+编译器生成的伪代码类似如下：
+
+void* memory = operator new(sizeof(string));
+
+call string::string("memory managerment") on memory；
+
+string* Pa = static_cast<string*>(memory);
+
+  
+
+35.2 operator new
+operator new的唯一的职责就是分配内存，对构造函数一无所知。相当于malloc，其实它内部实现也是调用了void * malloc(size_t size);函数
+
+void* operator new(size_t sizt) {
+
+   return malloc(size);
+
+}
+
+ 
+
+分为三种形式（前2种不调用构造函数，这点区别于new operator）：
+
+void* operator new (std::size_t size) throw (std::bad_alloc);  
+
+void* operator new (std::size_t size, const std::nothrow_t& nothrow_constant) throw();
+
+void* operator new (std::size_t size, void* ptr) throw();  
+
+第一种分配size个字节的存储空间，并将对象类型进行内存对齐。如果成功，返回一个非空的指针指向首地址。失败抛出bad_alloc异常。
+
+第二种在分配失败时不抛出异常，它返回一个NULL指针。
+
+第三种是placement new版本，它本质上是对operator new的重载，定义于#include <new>中。它不分配内存，调用合适的构造函数在ptr所指的地方构造一个对象，之后返回实参指针ptr。  
+
+第一、第二个版本可以被用户重载，定义自己的版本，第三种placement new不可重载。  
+
+A* a = new A; //调用第一种  
+
+A* a = new(std::nothrow) A; //调用第二种  
+
+new (p)A(); //调用第三种  ,new (p)A()调用placement new之后，还会在p上调用A::A()。
+
+ 
+
+35.3 placement new
+也叫定位new表达式，它用于在给定的内存中初始化对象。一般来说，使用new申请空间时，是从系统的“堆”中分配空间。但在某些特殊情况下，可能需要在已分配的特定内存创建对象，这就是所谓的“定位放置new”（placement new）操作。
+
+ 
+
+如果有这样一个场景，大量申请一块类似的内存空间，然后又释放掉。比如对于客户端请求，每一次上行数据都需为此申请一块内存，当Server处理完请求给客户端下行回复时释放该内存，表面看符合C++内存管理要求，但要知道每一次申请，系统都要在内存中找到一块合适大小的连续空间，这个过程是很慢的(相对)，极端情况下，如果系统中有大量的内存碎片且申请的空间很大，甚至可能失败。如此，可使用placement new在指定的内存空间中构造对象。  
+
+ 
+
+语法形式不同于普通new操作。例如，一般用如下语句A* p=new A;申请空间，而定位放置new操作使用A* p=new (ptr)A;申请空间，ptr就是指定的内存首地址。
+
+1）用定位放置new操作，既可在栈上，也可在堆上生成对象
+
+2）语句A* p=new (mem) A;定位生成对象，指针p和数组名mem指向同一片存储区。
+
+3）使用语句A *p=new (mem) A;定位生成对象时，会自动调用类A的构造函数，由于对象的空间不会自动释放(对象实际上是借用别人的空间），所以必须显示调用类的析构函数，如本例中的p->~A()。
+
+ 
+
+示例一：堆上生成对象
+
+char* preBuf = new char[5 * sizeof(BT)];
+
+cout << (void*)preBuf << endl;
+
+BT *p = new(preBuf) BT; // placement new
+
+cout << p << endl;
+
+p->SetNumber(10);
+
+cout << p->GetNumber() << endl;
+
+p->~BT();
+
+delete[]preBuf;
+
+ 
+
+示例二：String 构建
+
+string * str = new string("hello");等价于以下两句(先调用new操作符(operator new)申请内存，再调用placement new来初始化对象)
+
+void* memory = :: operator new(sizeof(string));
+
+String* str = new(memory) string("hello");
+
+ 
+
+注：
+
+如需把对象的内存分配和初始化操作分离，就需用到operator new 和placement new。在STL里面allocator就用到类似的做法，其中allocate负责向系统申请一块指定大小的内存(operator new)，而construct负责在这块内存上根据模板类的类型T来调用T的构造函数初始化内存(placement new)。同理deallocat和destory负责释放内存和析构对象。
+
+ 
+
+36.  基于范围的循环
+
+在使用基于范围的 for 循环处理数组时，该循环可自动为数组中的每个元素迭代一次。基于范围的 for 循环可以自动知道数组中元素的个数，所以不必使用计数器变量控制其迭代，也不必担心数组下标越界的问题。
+
+for (dataType rangeVariable : array) {
+
+ statement;
+
+}
+
+ 
+
+修改数组
+
+将范围变量声明为一个引用,引用变量是其他值的一个别名，任何对于引用变量的修改都将实际作用于别名所代表的值。
+
+for (int &val : numbers){
+
+cout << "Enter an integer value: ";
+
+cin >> val;
+
+}
+
+ 
+
+要使用范围for语句处理多维数组，除了最内层循环外，其他所有循环的控制变量都应该是引用类型。这种循环主要用于各种模板容器类。
+
+ 
+
+如果出于某些目的需要使用元素下标时，基于范围的 for 循环就不能使用了。另外，如果循环控制变量被用于访问两个或两个以上不同数组的元素，那么它也不适合使用。
