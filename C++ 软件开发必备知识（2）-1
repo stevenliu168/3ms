@@ -1,0 +1,904 @@
+Version:0.10, last modified: 2021/05/10
+
+Author: scott.zhang
+
+ 
+
+1.   C 和 C++
+
+2.   继承：私有、保护与公有
+
+3.   虚函数与纯虚函数
+
+4.   深浅拷贝,拷贝构造
+
+5.   单参构造，explicit
+
+6.   析构函数,显式析构
+
+7.   友元函数和友元类
+
+8.   Return Value Optimization
+
+9.   override,overload,final
+
+10.  接口定义事项
+
+11.  default和deleted
+
+12.  嵌入类,限制与约束
+
+13.  数据初始化
+
+14.  引用，指针
+
+15.  指针，nullptr
+
+16.  unique_ptr,shared_ptr
+
+17.  string, char*, string::c_str
+
+18.  左值，右值
+
+19.  std::move语义
+
+20.  类型推导auto,decltype
+
+21.  类型后置
+
+22.  强制类型转换
+
+23.  typdef,#define,using
+
+24.  const, #define
+
+25.  函数inline内联
+
+26.  static的作用
+
+27.  std::function对象包装
+
+28.  Lambda, 闭包
+
+29.  std::bind
+
+30.  锁的机制及管理
+
+31.  volatile
+
+32.  std::thread线程
+
+33.  struct,union,bitfield
+
+34.  内存资源及管理
+
+35.  new,placement new
+
+36.  基于范围的循环
+
+37.  插入迭代器之inserter
+
+38.  STL标准模板库
+
+39.  异常、表达式
+
+40.  模板，全特化，偏特化
+
+附：相关博文分享
+
+ 
+
+
+C++ 软件开发必备知识精编（1）
+
+http://3ms.huawei.com/km/blogs/details/10169787?l=zh-cn
+
+
+   
+23.  typdef,#define,using
+
+23.1 typedef, #define
+#define是预处理命令，在预处理是执行简单的替换，不做正确性的检查
+
+typedef是在编译时处理的，它是在自己的作用域内给已经存在的类型一个别名
+
+typedef    (int*)      pINT;
+
+#define    pINT2   int*
+
+效果相同？实则不同，实践中见差别：pINT a,b;的效果同int *a; int *b;表示定义了两个整型指针变量。而pINT2 a,b;的效果同int *a, b;表示定义了一个整型指针变量a和整型变量b。
+
+ 
+
+23.2 using与 typedef
+C++11之前可通过typedef定义类型的别名。之后，用using实现声明别名
+
+l  配合命名空间，对命名空间权限进行管理
+
+using namespace std;//释放整个命名空间到当前作用域
+
+using std::cout;    //释放某个变量到当前作用域
+
+l  类型重命名
+
+作用等同typedef，但是逻辑上更直观。
+
+l  继承体系中，改变部分接口的继承权限。
+
+应用场景，比如需要私有继承一个基类，然后又想将基类中的某些public接口在子类对象实例化后对外开放直接使用。如下即可
+
+class BaseA:private Base {
+
+public:
+
+    using Base::dis1;//需要在BaseA的public下释放才能对外使用
+
+    void dis2show() {
+
+           this->dis2();
+
+    }
+
+};
+
+ 
+
+两者区别
+
+typedef Type Alias;  
+
+using Alias = Type;  
+
+模板别名
+
+template<class T> using MyAllocatorVector = std::vector<T, MyAllocator<T>>;
+
+MyAllocatorVector<int> data;       // 使用 using 定义的别名
+
+template<class T> class MyClass {  
+
+private:    MyAllocatorVector<int> data_;   // 模板类中使用
+
+}
+
+ 
+
+// 通过模板包装 typedef，需要实现一个模板类
+
+template<class T>
+
+struct MyAllocatorVector {
+
+typedef std::vector<T, MyAllocator<T>> type;
+
+};
+
+MyAllocatorVector<int>::type data;  //  多写 ::type
+
+ 
+
+template<class T>
+
+class MyClass {  
+
+      private:    
+
+       typename MyAllocatorVector<int>::type data_;  // 模板类中需加上::type，typename
+
+};
+
+ 
+
+注：使用using导入命名空间会影响后续代码，易造成符号冲突，所以不要在头文件以及源文件中的#include之前使用using导入命名空间。
+
+ 
+
+24.  const, #define
+
+24.1 const & constexpr
+1）欲阻止一个变量被改变，可以使用const修饰，定义该const变量时，通常需对它进行初始化，因为后续不能再去改变；
+
+class Bto {
+
+public:    
+
+Bto (int length) : dataLength(length) {}
+
+private:
+
+const int dataLength;  
+
+};
+
+2）对指针来说，可以指定指针本身为const，也可以指定指针所指的数据为const，或二者同时指定为const；
+
+3）在一个函数声明中，const可修饰形参，在函数内部不能改变其值；
+
+void PrintFoo(const Foo& foo)
+
+4）对于类的成员函数，若指定其为const类型，则表明其是一个常函数，不能修改类的成员变量, 不会调用其它非const的成员函数
+
+class Tup { public:
+
+      // ...
+
+      int PrintValue() const  {  // 不会修改成员变量
+
+             std::cout << value << std::endl; 
+
+}
+
+      int GetValue() const  {  //  不会修改成员变量
+
+return value;
+
+}
+
+private:  int value;
+
+};
+
+5）对于类的成员函数，有时候必须指定其返回值为const类型，以使得其返回值不为“左值”。
+
+ 
+
+注：const 数据成员只在某个对象生存期内是常量，对于整个类而言却是可变的，因为类可创建多个对象，不同对象其 const 数据成员的值可以不同。不能在类声明中初始化 const 数据成员，const 数据成员的初始化在类构造函数的初始化表中进行。
+
+ 
+
+constexpr
+
+生成常量表达式，需要编译器支持，允许程序利用编译时的计算能力。
+
+#define MAX_MSISDN_LEN 20    // 不好
+
+const int MAX_MSISDN_LEN = 20; // 好， const常量
+
+constexpr int MAX_MSISDN_LEN = 20; //C++11以上版本，可以使用
+
+ 
+
+允许函数被应用在以前调用宏的所有场合。譬如，想要一个计算数组size的函数，size是10的倍数。用constexpr，就可调用一个constexpr函数去声明一个数组。如果不用，则需要创建一个宏或者使用模板，因为不能用函数的返回值去声明数组的大小。
+
+constexpr int getDefaultArraySize (int multiplier){
+
+  return 10 * multiplier;
+
+}
+
+int my_array[ getDefaultArraySize(3)];
+
+ 
+
+限制：
+
+函数中只能有一个return语句（有极少特例），只能调用其它constexpr函数，只能使用全局constexpr变量。假如将一成员函数标记为constexpr，则顺带也将它标记成了const。如果将一个变量标记为constexpr，则同样它是const的。但相反并不成立，即一个const的变量或函数，并不是constexpr。
+
+
+
+ 
+
+24.2 const与 #define
+1）#define定义的常量没有数据类型，所给出的是一个立即数；const定义的常量有类型名字，存放在静态区域。编译器可以对后者进行类型安全检查，而对前者只进行字符替换，没有类型安全检查，且在字符替换可能会产生意料不到的错误(边际效应）。
+
+2）处理阶段不同，#define定义的宏变量在预处理时进行替换，可能有多个拷贝，const所定义的变量在编译时确定其值，在程序运行过程中内存中只有一个拷贝。
+
+3）#define定义的常量是不可以用指针去指向，const定义的常量可以用指针去指向该常量的地址
+
+4）#define可以定义简单的函数，const不可以定义函数
+
+5）有些集成化的调试工具可以对 const 常量进行调试，但是不能对宏常量进行调试。
+
+6）希望某些常量只在类中有效。由于#define 定义的宏常量是全局的，不能达到目的，于是想当然地觉得应该用 const 修饰数据成员来实现。
+
+ 
+
+25.  函数inline内联
+
+内联用一种类似于宏的展开的方式代替方法调用，在调用方法内部将被调用方法展开，可提高性能。指明内联机制的意图有两种：一种是用保留字 inline给方法的定义加上前缀；另一种方法是在头部声明中定义方法。使用内联函数的目的是为了提高函数的运行效率。一般函数进行调用时，要将程序执行权转到被调用函数中，然后再返回到调用它的函数中，而内联函数在调用时，是将调用表达式用内联函数体来替换。
+
+ 
+
+逻辑上，编译器为内联一个方法所使用的过程：内联方法的连续代码块被复制到调用方法的调用点处。内联方法内的任何局部变量在块内分配，内联方法的输入参数和返回值被映射到调用方法的局部变量空间。如果内联方法有多个返回点，则这些返回点就变成内联块尾部的分支，所有与调用(对于与创建新块相关联的SP修改可能例外)有关的痕迹及随之而来的所有性能损失都被消除了。 
+
+内联原则
+
+l  内联函数省去调用的时间是以代码膨胀为代价的，内联函数体代码不能过长。只适合于1~10行的小函数。对一个含有许多语句的大函数，函数调用和返回的开销相对来说微不足道，也没必要用内联实现，一般的编译器会放弃内联，而采用普通的方式调用函数。
+
+l  内联函数一般不建议包含循环语句，常规来说复杂的循环操作要比调用函数的开销大。
+
+l  内联函数要做参数类型检查,   这是跟宏相比的优势。
+
+l  如果内联函数包含复杂的控制结构，如循环、分支(switch)、try-catch 等语句，一般编译器将该函数视同普通函数。
+
+l  虚函数、递归函数通常不被用来做内联函数。
+
+l  不应内联其实现容易发生改变的方法。
+
+… … …
+
+惟一和微小总是意味着代码尺寸和性能方面的收益。惟一正好是由于使用频率才内联的，只有一个调用点的事实说明不需要考虑惟一方法的尺寸和调用频率，内联合成后的代码将比以前更小更快。微小可以在不考虑使用频率的情况下进行内联，通常少于4条源代码级语句的方法，被编译成10条以下的汇编指令，要确保内联后的微小方法仍保持微小(内联非叶方法时，任何由叶方法扩充所产生的扩充量都要翻倍)。
+
+ 
+
+25.1 内联的性能增益
+避免昂贵方法调用所带来的性能增益只是内联在性能方面的一半，另一半则是调用间的优化。一个经过良好优化的编译器会使内联方法块边界的任何痕迹变得认不出来。通过优化，方法的大部分将不再存在。
+
+l  避免对输入参数进行范围检测的过度性保护，可减少代码尺寸，清除条件判断和分支；
+
+l  编译器能在编译时确定方法的重要输入参数，那或许能进行一种十分划算的优化。
+
+ 
+
+25.2 过度内联的影响
+过度进行方法内联将带来代码数量级的膨胀，对性能产生负面影响，如缓存失败和页面错误，这将使所假设的任何主要收获变得微小。另一方面，过分内联的程序将执行较少的指令，但是需要更长的时间来执行。
+
+内联代码在每次内联时都各不相同，所以在从另一个内联代码位置再次执行该方法时，缓存将再次丢失。即使内联代码相同，内联指令也将出现在进程代码空间的不同地址中。导致的缓存性能降低可能掩盖与调用和返回开销相关的性能提高，特别对于大型方法更是如此。
+
+ 
+
+25.3 内联决策矩阵
+调用频率
+
+超过20行代码
+
+5~20行代码
+
+少于 5 行代码
+
+低(80%以下)
+
+不建议内联
+
+不建议内联
+
+可以内联
+
+中(80% ~ 95%)
+
+不建议内联
+
+重写方法，以展示出其快速路径并内联
+
+建议内联
+
+高(95% ~ )
+
+重写方法，以展示出其快速路径并内联
+
+选择性地内联高频静态调用点
+
+建议内联
+
+对中等大小而动态调用频率高的方法进行内联可以从该信息中获得很大益处。如果方法静态出现只占小部分，说明动态执行占有重要分量，那么选择内联其高利用率的部分是可取的。
+
+对于那些静态尺寸大、动态尺寸小而调用频率高的方法，可以考虑重写，以便抽取它们的重要动态特性，然后内联动态部分。
+
+注：对二级缓存和换页的影响是代码膨胀的副产品。
+
+ 
+
+25.4 内联的相关技巧
+l  条件内联：使用编译行参数向编译器传递宏定义，输入参数用于定义名为INLINE的宏。把所有潜在要内联的方法的定义与要外联的方法划分开。外联方法包括在标准 .c  文件中，潜在要内联的方法放在 .inl 文件中。如要内联 .inl文件中的方法，可在编译命令中使用 –D 选项来定义 INLINE。此种内联技术是一种要么全有要么全无的方法，可简化早期开发阶段的调试工作。
+
+l  选择性内联：给方法提供两个版本，一种是内联的，另外一种是外联的。在 .c 文件中原来版本的代码体替换成对内联方法的调用。通常只在性能重要的路径中内联方法调用
+
+l  递归内联：直接递归方法不能内联，作为一般的规则，特别是在性能十分重要的情况下，只要迭代方案相当简单，就应注意使用迭代方案代替递归方案。是一种让人别扭但对提高递归方法性能有效的方式。
+
+ 
+
+26.  static的作用
+
+static作用域
+
+1）函数体内: static 修饰的局部变量作用范围为该函数体，不同于auto变量，其内存只被分配一次，因此其值在下次调用的时候维持了上次的值
+
+2）模块内：static修饰全局变量或全局函数，可以被模块内的所有函数访问，但是不能被模块外的其他函数访问，使用范围限制在声明它的模块内
+
+3）类中
+
+修饰成员变量，表示该变量属于整个类所有，对类的所有对象只一份拷贝
+
+修饰成员函数表示该函数属于整个类，不接受this指针，只能访问类中的static成员变量。
+
+ 
+
+静态全局变量限制了其作用域， 即只在定义该变量的源文件内有效， 在同一源程序的其它源文件中不能使用它。由于静态全局变量的作用域局限于一个源文件内，只能为该源文件内的函数公用，因此可避免在其它源文件中引起错误。
+
+ 
+
+使用匿名 namespace封装或用static修饰
+
+对cpp文件中不需导出的变量，常量或函数，可匿名 namespace封装或用static修饰。
+
+静态函数成员变量，静态成员函数，静态全局变量，静态函数局部变量，每一种都有特殊的处理。static只能保证变量，常量和函数的文件作用域，但namespace还可封装类型等。统一namespace来处理C++的作用域，而不需同时使用static和namespace来管理。static修饰的函数不能用来实例化模板，而匿名namespace可以。
+
+ 
+
+27.  std::function对象包装
+
+类模板std::function是可调用对象的包装器，可包装除了类成员之外的所有可调用对象。包括普通函数，函数指针，lambda,仿函数。通过指定的模板参数，可用统一方式保存，并延迟执行(回调)。
+
+示例一：
+
+#include <iostream>
+
+#include <functional>
+
+using namespace std;
+
+class functor {
+
+public:
+
+    void operator()()    {
+
+        cout<<__FUNCTION__<<endl;
+
+    }
+
+};
+
+class A {
+
+public:
+
+    A(const function<void()> & cb):_callback(cb)
+
+    {}
+
+    void notify() {
+
+        _callback();
+
+    }
+
+    function<void()> _callback;
+
+};
+
+int main(int argc, char *argv[]){
+
+    functor fct;
+
+    A a(fct);
+
+    a.notify();
+
+    return 0;
+
+}
+
+ 
+
+28.  Lambda, 闭包
+
+匿名函数是许多编程语言都支持的概念，有函数体，没有函数名。匿名函数最常用的是作为回调函数的值。c++引入了lambda 函数, lambda表达式类似Javascript中的闭包，可用于创建并定义匿名的函数对象，以简化编程工作。
+
+ 
+
+函数对象能维护状态，但相对来说语法开销大，而函数指针语法开销小，却没法保存范围内的状态。lambda函数结合了两者的优点，可写出优雅简洁的代码。
+
+[capture](parameters)->return-type {body}
+
+auto func = [] () { cout << "hello,world"; };
+
+func(); // now call the function
+
+ 
+
+28.1 变量捕获与lambda闭包实现
+lambda函数能够捕获lambda函数外的具有自动存储时期的变量，函数体与这些变量的集合合起来叫闭包。
+
+l  [] 不截取任何变量
+
+l  [&} 截取外部作用域中所有变量，并作为引用在函数体中使用
+
+l  [=] 截取外部作用域中所有变量，并拷贝一份在函数体中使用
+
+l  [=, &foo] 截取外部作用域中所有变量，并拷贝一份在函数体中使用，但对foo变量使用引用
+
+l  [bar] 截取bar变量并且拷贝一份在函数体重使用，同时不截取其他变量
+
+l  [x, &y] x按值传递，y按引用传递
+
+l  [this] 截取当前类中的this指针。如果已经使用了&或者=就默认添加此选项
+
+ 
+
+lambda通过创建个小类来实现。这个类重载了操作符()，一个lambda函数是该类的一个实例。当该类被构造时，周围的变量就传递给构造函数并以成员变量保存起来。看起来跟函数对象很相似。
+
+lambda函数的类型是std:function
+
+#include <iostream>
+
+#include <functional>
+
+using namespace std;
+
+int main() {
+
+    function<int()> func = []()->int{
+
+        return 3;
+
+    };
+
+    cout << func() << endl;
+
+    return 0;
+
+}
+
+ 
+
+28.2 avoid default capture modes
+l  如果lambda和函数都可以的场景，优先使用函数
+
+函数无法捕获局部变量或在局部范围内声明；如果需要这些东西，尽可能选择 lambda，而不是手写的 functor。另一方面，lambda和functor不会重载, 如果需要重载，则使用函数。 如果 lambda 和函数都可以的场景，则优先使用函数；尽可能使用最简单的工具
+
+示例
+
+// 编写一个只接受 int 或 string 的函数，重载是自然选择
+
+void F(int);
+
+void F(const string&);
+
+ 
+
+// 需要捕获局部状态，或出现在语句或表达式范围，lambda是自然选择
+
+vector v = LotsOfWork();
+
+for (int taskNum = 0; taskNum < max; ++taskNum) {
+
+pool.Run([=, &v] {...});
+
+}
+
+pool.Join();
+
+ 
+
+l  非局部范围使用lambdas ，避免按引用捕获
+
+非局部范围使用lambdas包括返回值，存储在堆上，或传递给其它线程。局部的指针和引用不应该在它们的范围外存在。 lambdas按引用捕获就是把局部对象的引用存储起来。如果这会导致超过局部变量生命周期的引用存在，则不应该按引用捕获。
+
+// 不好
+
+void Foo() {
+
+int local = 42;
+
+// 按引用捕获 local.
+
+//函数返回后,local不再存在,因此Process()的行为未定义!
+
+threadPool.QueueWork([&]{ Process(local); });
+
+}
+
+// 好
+
+void Foo() {
+
+int local = 42; // 按值捕获，Process()调用过程中，local 总是有效
+
+threadPool.QueueWork([=]{ Process(local); });
+
+}
+
+ 
+
+l  如果捕获this ，则显式捕获所有变量
+
+在成员函数中的 [=] 看起来是按值捕获。但因为是隐式的按值获取了this指针，并能够操作所有成员变量，数据成员实际是按引用捕获的，一般情况下建议避免。如果的确需要这样做，明确写出对 this 的捕获。
+
+class MyClass {
+
+public: void Foo() {
+
+int i = 0;
+
+auto Lambda = [=]() { Use(i, data_); }; // 不好: 像是按值捕获，成员变量实际按引用捕获
+
+data_ = 42;
+
+Lambda(); // 调用 use(42);
+
+data_ = 43;
+
+Lambda(); // 调用 use(43);
+
+auto Lambda2 = [i, this]() { Use(i, data_); }; // 好，显式按值捕获，避免混淆
+
+}
+
+private: int data_ = 0;
+
+};
+
+ 
+
+l  避免使用默认捕获模式
+
+lambda表达式提供了两种默认捕获模式：按引用（&）和按值（=）。 默认按引用捕获会隐式的捕获所有局部变量的引用，易导致访问悬空引用。相比之下，显式的写出需要捕获的变量可以更容易的检查对象生命周期，减小犯错。默认按值捕获会隐式的捕获this指针，且难以看出lambda函数所依赖的变量是哪些。如果存在静态变量，还会让阅读者误以为lambda拷贝了一份静态变量。因此，通常应明确写出需要捕获的变量，而不是使用默认捕获模式。
+
+错误示例
+
+auto func() {
+
+int addend = 5;
+
+static int baseValue = 3;
+
+return [=]() {        // 实际只复制了addend
+
+++baseValue;   // 修改会影响静态变量的值
+
+return baseValue + addend;
+
+};
+
+}
+
+正确示例
+
+auto func() {
+
+int addend = 5;
+
+static int baseValue = 3;
+
+return [addend, baseValue = baseValue]() mutable { //用C++14捕获，拷贝一份变量
+
+++baseValue; // 修改的拷贝，不会影响静态变量的值
+
+return baseValue + addend;
+
+};
+
+}
+
+ 
+
+29.  std::bind
+
+bind()函数的意义就像它的函数名一样，用来绑定函数调用的某些参数, 实际是一种延迟计算的思想，将可调用对象保存起来，然后在需要的时候再调用。而且这种绑定是非常灵活的，不论是普通函数、函数对象、还是成员函数都可以绑定，而且其参数可以支持占位符，比如可以这样绑定一个二元函数auto f = bind(&func, _1, _2);，调用的时候通过f(1,2)实现调用。
+
+代码示例：
+
+auto bindFunc1 = bind(TestFunc, std::placeholders::_1, 'A', 100.1);
+
+bindFunc1(10);
+
+ 
+
+30.  锁的机制及管理
+
+线程之间的锁包含：互斥锁、条件锁、自旋锁、读写锁等。一般而言，锁的功能越强大，性能就会越低。
+
+ 
+
+读写锁
+可借助于“读者-写者”问题进行理解。计算机中某些数据被多个进程共享，对数据库的操作有两种：一种是读操作，就是从数据库中读取数据而不会修改；另一种是写操作，会修改数据库中存放的数据。因此，可得到允许在数据库上同时执行多个“读”，但某一时刻只能在数据库上有一个“写”操作来更新数据。通常有些公共数据修改的机会很少，但其读的机会很多。并且在读的过程中会伴随着查找，给这种代码加锁会降低我们的程序效率。读写锁(写独占，读共享，写锁优先级高)可以解决这个问题。
+
+https://imgconvert.csdnimg.cn/aHR0cHM6Ly9naXRodWIuY29tL0tlS2UtTGkvZ29sYW5nLWludGVydmlldy1xdWVzdGlvbnMvcmF3L21hc3Rlci9zcmMvaW1hZ2VzLzYxLmpwZw?x-oss-process=image/format,png
+
+所谓「读写锁」，就是同时可以被多个读者拥有，但是只能被一个写者拥有的锁。而所谓「多个读者、单个写者」，并非指程序中只有一个写者（线程），而是说不能有多个写者同时去写。STL 和 Boost 都提供了 shared_mutex 来解决。
+
+ 
+
+示例：(计数器)
+
+class Counter {
+
+public:
+
+  Counter() : value_(0) {
+
+  }
+
+      // Multiple threads/readers can read the counter's value at the same time.
+
+      std::size_t Get() const {
+
+      std::shared_lock<std::shared_mutex> lock(mutex_);
+
+      return value_;
+
+   }
+
+  // Only one thread/writer can increment/write the counter's value.
+
+  void Increase() {
+
+        // You can also use lock_guard here.
+
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+
+        value_++;
+
+}
+
+ // Only one thread/writer can reset/write the counter's value.
+
+  void Reset() {
+
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+
+       value_ = 0;
+
+  }
+
+ 
+
+private:
+
+  mutable std::shared_mutex mutex_;
+
+  std::size_t value_;
+
+};
+
+shared_mutex 比一般的 mutex 多了函数 lock_shared() / unlock_shared()，允许多个（读者）线程同时加锁、解锁，而 shared_lock 则相当于共享版的 lock_guard。对 shared_mutex 使用 lock_guard 或 unique_lock 就达到了写者独占的目的。
+
+测试代码：
+
+std::mutex g_io_mutex;
+
+void Worker(Counter& counter) {
+
+  for (int i = 0; i < 3; ++i) {
+
+    counter.Increase();
+
+    std::size_t value = counter.Get();
+
+    std::lock_guard<std::mutex> lock(g_io_mutex);
+
+    std::cout << std::this_thread::get_id() << ' ' << value << std::endl;
+
+  }
+
+}
+
+int main() {
+
+  const std::size_t SIZE = 2;
+
+  Counter counter;
+
+ 
+
+  std::vector<std::thread> v;
+
+  v.reserve(SIZE);
+
+  v.emplace_back(&Worker, std::ref(counter));
+
+  v.emplace_back(&Worker, std::ref(counter));
+
+  for (std::thread& t : v) {
+
+    t.join();
+
+  }
+
+  return 0;
+
+}
+
+输出(仍然是随机性的)：对于计数器来说，原子类型std::atomic<> 也许是更好选择
+
+ 
+
+读写场景
+
+假如一个线程，先作为读者用 shared_lock 加锁，读后又想变成写者,处理方式：
+
+方法一：先解读锁，再加写锁。问题是，一解一加之间，其他写者说不定已经介入并修改了数据，那么当前线程作为读者时所持有的状态(比如指针、迭代器)也就不再有效。
+
+方法二：用upgrade_lock(仅限Boost，STL未提供)，可以当做shared_lock用，但必要时可直接从读「升级」为写。
+
+{
+
+  // acquire shared ownership to read.
+
+  boost::upgrade_lock<boost::shared_mutex> upgrade_lock(shared_mutex_);
+
+  // read  ......
+
+ 
+
+  // upgrade to exclusive ownership to write.
+
+  boost::upgrade_to_unique_lock<boost::shared_mutex> unique_lock(upgrade_lock);
+
+  // write......
+
+}
+
+ 
+
+锁的管理
+锁管理遵循RAII(Resource Acquisition Is Initialization)习语来处理资源。锁管理器在构造函数中自动绑定它的互斥体，并在析构函数中释放它,大大减少死锁的风险。锁管理器包含：用于简单的std::lock_guard，及用于高级用例的std::unique_lock。
+
+std:: lock_guard
+
+{
+
+  std::mutex m,
+
+  std::lock_guard<std::mutex> lockGuard(m);//生命周期只在这{}里面有效
+
+  sharedVariable = getVar();
+
+}
+
+ 
+
+std::unique_lock
+
+比std::lock_guard更强大，在lock_guard的基础上还能：
+
+l  没有关联互斥体时创建
+
+l  没有锁定的互斥体时创建
+
+l  显式和重复设置或释放关联互斥锁
+
+l  移动互斥体 move
+
+l  尝试锁定互斥体
+
+l  延迟锁定关联互斥体 
+
+… …
+
+std::mutex用来保证线程同步，防止不同的线程同时操作同一个共享数据。使用mutex不安全，当一个线程在解锁前异常退出，那么其它被阻塞的线程就无法继续下去。lock_guard相对安全，基于作用域，能自解锁，当该对象创建时，它会像m.lock()一样获得互斥锁，生命周期结束时会自动析构(unlock)，不会因为某个线程异常退出而影响其他线程。
+
+ 
+
+31.  volatile
+
+volatile所定义的变量随时都有可能改变，因此,编译后的程序每次需要存储或读取这个变量的时候，都会直接从变量地址中读取。如果没有volatile关键字，编译器可能优化读取和存储，可能暂时使用寄存器中的值，如这个变量由别的程序更新了，将出现不一致的现象。
+
+1)     多线程应用中被多个任务共享的变量
+
+2)     防止编译器优化：中断信号的控制,直接从内存中读取数据，而非寄存器
+
+short flag;
+
+void test() {
+
+do1();
+
+while (flag == 0);
+
+do2();
+
+}
+
+上段程序等待内存变量flag的值变为1，之后才运行do2()。flag的值由别的程序更改，可能是某个硬件中断服务程序。如：当某个按钮按下，就会对DSP产生中断，在按键中断程序中修改flag为1，上面程序就能得以继续运行。但编译器并不知道flag会被别的程序修改，因此在它进行优化的时候，可能会把flag的值先读入某个寄存器，然后等待那个寄存器变为1。如不幸进行了这样的优化，那while循环就变成了死循环，因寄存器的内容不可能被中断服务程序修改。为让程序每次都读取真正flag的值，就需要定义为如下形式：
+
+volatile short flag;
+
+ 
+
+基本说明
+
+l  不在两个操作之间把volatile变量缓存在寄存器。在多任务、中断、甚至setjmp环境下，变量可能被其它程序改变，编译器无法知道，volatile告诉编译器这种情况。
+
+l  不做常量合并、常量传播等优化。像下面的代码，if的条件不会当作无条件真。
+
+volatile int i = 1;
+
+if (i > 0 ) …
+
+l  对volatile变量的读写不会被优化。如果对一个变量赋值但后面没用到，编译器常可省略那个赋值操作，然而对Memory Mapped IO的处理是不能这样优化。
+
+ 
+
+Volatile不保证对内存操作的原子性。其一，x86需要LOCK前缀才能在SMP下保证原子性；其二，RISC根本不能对内存直接运算，要保证原子性得用别的方法，如atomic_inc。
