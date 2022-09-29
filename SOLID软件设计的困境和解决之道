@@ -1,0 +1,178 @@
+http://3ms.huawei.com/km/blogs/details/8351065
+SOLID软件设计的困境和解决之道---选自《敏捷软件开发：原则、模式与实践》
+
+目录:
+1.软件设计的主要问题
+2.软件设计坏味道
+3.该如何去设计
+
+软件设计的主要问题
+我们在软件开发初期, 会进行建模设计，得到一个清晰的架构，然后按照设计去用代码实现。可能在第一个版本发布的时候，我们会觉得产品的设计是清晰易懂的。
+
+但是随着时间的推移，需求逐渐变化，慢慢的我们会发现代码中出现很多坏味道，设计逐渐腐化，软件越来越难以维护。 到了后面，即使是一个简单的需求，可能都需要花费巨大的工作量才能完成，并且心里还总是担心是否有场景遗漏、破坏老功能的问题出现，以至于开发人员和维护人员希望重新设计这个模块。
+image.png
+
+下面通过一个软件开发的例子来说明软件设计是如何逐步腐化的：
+产品经理需要你实现一个需求，从键盘读入一段内容，然后将内容输出大打印机。我们通过设计，然后实现代码，就得到下面的结果。
+image.png
+
+void Copy()
+{
+    string content = ReadFromKeyBoard();
+    WriteToPrinter(content);
+}
+但是第二天产品经理告诉你需求发生了变化，需要从纸带中读入信息，思考一下，代码修改成这样：
+
+void Copy(bool isKeyboard)
+{
+    string content;
+    if (isKeyboard) {
+        content = ReadFromKeyboard();
+    } else {
+        content = ReadFromPt();
+    }
+
+    WriteToPrinter(content);
+}
+第三天产品经理告诉你需求发生了变化，输出的内容可以输出到纸带穿孔机上面，思考一下，代码修改成这样：
+
+void Copy(bool isKeyboard, bool isPrinter)
+{
+    string content;
+    if (isKeyboard) {
+        content = ReadFromKeyboard();
+    } else {
+        content = ReadFromPt();
+    }
+
+    if (isPrinter) {
+        WriteToPrinter(content);
+    } else {
+        WriteToPunch(content);
+    }
+}
+后面的需求继续变化，最后代码可能变化成这样：
+
+void Copy(InputDeviceType inputDeviceType, OutputDeviceType outputDeviceType)
+{
+    string content;
+    switch (inputDeviceType) {
+        case KEYBOARD:
+            content = ReadFromKeyboard();
+            break;
+        case PAPER_TAPE:
+            content = ReadFromPt();
+            break;
+        case ...:
+            content = ReadFromXXX();
+            break;
+        case ...:
+            content = ReadFromYYY();
+            break;
+        default:
+            // ...
+            break;
+    }
+
+    switch (outputDeviceType) {
+        case PRINTER:
+            WriteToPrinter(content);
+            break;
+        case PAPER_TAPE_PUNCH:
+            WriteToPunch(content);
+            break;
+        case ...:
+            WriteToXXX(content);
+            break;
+        case ...:
+            WriteToYYY(content);
+            break;
+        default:
+            // ...
+            break;
+    }
+}
+需求可能还在变化，最终你会发现我们的代码慢慢呈现了很多坏味道:
+
+代码难以修改，每次新增一个接入设备的，都需要修改Copy这个函数。
+Copy函数也难以复用，与具体的设备发生了强耦合。
+软件设计坏味道
+前面的需求开发我们也是按照正常的需求变更来进行软件开发，为什么会逐步腐化，出现越来越多的坏味道呢？最初的软件设计和代码是良好的，但是我们忽略了一点需求总是在变化。需求处在一个持续变动的状态中，这是我们作为设计人员和开发人员需要关注的，我们软件设计的一个重要目的就是让软件可以更低成本的去应对变化，如果因为需求的变化导致我们的软件设计出现腐化，那么说明没有遵循良好的设计方法和实践。
+
+主要原因是我们在新增需求，Bug修正的时候采用了一种无序设计：
+image.png
+
+随着需求的增加，业务知识的增多，我们设计和实现的业务系统的复杂度是逐步提高的，但是我们没有有意识的去控制代码和架构的复杂度，最终导致了很多代码和设计的坏味道，代码坏味道在Martin Fowler那本重构书里面进行了详细的描述，那么软件设计的坏味道包括哪些呢？
+
+僵化性（Rigidity）：很难对系统改动，一个改动需要其他部分一起改动。
+脆弱性（Frgility）：系统的改动会导致其他概念无关的地方出现问题。
+牢固性（Immobility）：很难解开系统，抽取出重用组件。
+粘滞性（Viscosity）：做正确的事情比做错误的事情更难。（实现或变更一个需求时，生硬的方法很简单，保持系统设计的方法很难；或开发环境迟钝低效时，开发人员会倾向于做不会导致大规模重编译的改动，即使那些改动不再保持设计）
+不必要的复杂性（Needless Complexity）：设计中包含不具有任何直接好处的基础结构。
+不必要的重复（Needless Repetition）：设计中包含重复结构，而该重复结构本应使用单一抽象进行统一。
+晦涩性（Opacity）：很难阅读，理解。没有很好的表现出意图。
+我们结合当前开发中的一些问题，对于这些坏味道就会有更深刻的理解。
+
+当我们修改一个需求，总是需要修改两个以上的模块，或者当我们修改多个需求，总是修改同一个模块。那么说明软件设计是僵化和脆弱的，不易复用的，根本原因是我们没有将功能内聚的部分放在一起。
+当我们修改一个需求，通过硬编码，到处修改的工作量往往比调整代码架构，更易扩展更困难，那么说明软件就有粘滞性，可能已经是大泥团架构了。
+当我们看我们代码，里面充斥了大量的interface/抽象类等，但是变化方向却只有一个，那么说明我们的系统出现了过度设计。
+当我们开发的时候习惯性的进行拷贝，粘贴，然后重构，那么就会产生大量的重复代码。
+代码没有表达我们意图，包括架构意图和实现意图，这里主要是在软件设计理念和最终的代码结构是不匹配的，实现代码的时候丢失了业务领域含义，编程语言使用不熟练等等都会导致这样的问题。
+该如何去设计
+高内聚，低耦合这个基本原则我相信只要了解软件工程的人都知道：
+
+内聚性，关注的是一个软件单位内部的关联紧密程度。因而高内聚追求的是关联紧密的事物应该被放在一起，并且只有关联紧密的事物才应该被放在一起。
+耦合性，则是强调两个或多个软件单位之间的关联紧密程度。因而低耦合追求的是，软件单位之间尽可能不要相互影响。
+我们在软件设计的过程中，其实就是希望我们的软件是满足高内聚低耦合的，局部化影响的，以此来提高我们软件架构的可扩展性和可复用性。但是软件需求的变化是不确定，我们没有办法刚开始预料到后面的变化（无法预料，或者过度设计增加复杂度）， 那么我们为什么不反过来思考：让实际发生的需求变化来驱动我们识别变化，管理变化，从而让我们的系统达到恰如其分的内聚度和耦合度?，这就是基于变化驱动设计方法，是一种敏捷设计。
+
+回过头我们再看上面那个例子：我们在第一次需求变化的发现，读取内容的设备有变化，但是对于Copy函数只应该关注读取内容，而不应该关心具体设备类型，所以这个时候基于新需求调整一下模块设计，让Copy不用关心具体的设备信息，第二次需求变更同理。 示意图如下：
+image.png
+
+最终的示意代码如下：
+
+class Reader {
+public:
+    virtual string Read() = 0;
+};
+
+class Keyboard : public Reader {
+public:
+    string Read() override {return ReadFromKeyboard();}
+};
+
+class PaperTape : public Reader {
+public:
+    string Read() override {return ReadFromPt();}
+};
+class Writer {
+public:
+    virtual void Write(const string& content) = 0;
+};
+
+class Printer : public Writer {
+public:
+    void Write(const string& content) override {WriteToPrinter(content);}
+};
+
+class PaperTapePunch : public Writer {
+public:
+    void Write(const string& content) override {WriteToPunch(content);}
+};
+void Copy(Reader& reader, Writer& writer)
+{
+    string content = reader.Read();
+    writer.Write(content);
+}
+上面的代码是用C++实现的，在C中可以用函数指针，Go中使用interface或者function来实现,，Java用interface实现
+这个里面其实用到了一些设计原则，比如开放-封闭原则，依赖倒置原则，如果回到设计模式，可能认识到是通过策略模式来解决问题。正是这些原则和模式，可以让我们后面无须修改Copy函数就能支持新的输入和输出设备的, 后续具体接入设备和输出设备已经和Copy无关了，Copy是面向了Reader和Writer抽象接口编程，再配合依赖注入就可以彻底让Copy和具体设备类型无关了。
+
+最终我们的开发模式变成这样：
+image.png
+
+但是有一点需要注意，我们在软件设计初期是无法预测程序将如何变化的（我们不能在V1版本就做成完美设计来），我们也不需要去做这样的假设，我们先遵循KISS原则和简单设计四原则，简单合理的实现当前需求。当需求变化确定的时候，我们再去修改模块设计，使之在这个需求变化方向是保持弹性的，这样后续同样的需求就可以最低成本进行开发了。
+
+后面将对SOLID原则展开讲解，希望大家真正掌握：
+
+理解SOLID原则是如何达成支撑高内聚低耦合目标的，是如何解决我们软件设计中的问题的。
+根据设计原则可以快速诊断当前的软件设计问题。
+可以采用适当的设计模式去解决相关问题。
