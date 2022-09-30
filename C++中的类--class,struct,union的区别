@@ -1,0 +1,64 @@
+C++中的类--class,struct,union的区别
+日期：2012-09-11 14:24浏览：751评论：3
+这次讨论这三个关键字的主要区别是基于C++的，
+主要是发现“结构析构函数，导致内存泄露”这个案例的结论有些问题。
+
+在C++标准中，
+A class is a type. Its name becomes a class-name (9.1) within its scope.
+
+class-name:
+
+identiﬁer
+
+simple-template-id
+
+Class-speciﬁers and elaborated-type-speciﬁers (7.1.6.3) are used to make class-names.  An object of a class
+
+consists of a (possibly empty) sequence of members and base class objects.
+
+class-speciﬁer:
+
+class-head { member-speciﬁcation opt }
+
+class-head:
+
+class-key attribute-speciﬁer-seq opt class-head-name class-virt-speciﬁer opt base-clause opt
+
+class-key attribute-speciﬁer-seq opt base-clause opt
+
+class-head-name:
+
+nested-name-speciﬁer opt class-name
+
+class-virt-speciﬁer:
+
+final
+
+class-key:
+
+class
+
+struct
+
+union
+
+从上面可以看出class,struct,union都可以作为类的关键字，那么这3个之间有什么区别了。
+class就不用说了，我们写类都是自动选择这个关键字。
+1. 成员的默认访问权限是private
+
+struct：
+1. 成员的默认访问权限是public
+
+union：
+1. 不能有virtual成员函数。
+2. 不能包含具有有意义的特别的成员函数(构造，析构，拷贝构造，赋值拷贝)的类成员变量
+3. 成员的默认访问权限是public
+4. 还有重要的一点，也是union的基本特点，类里面只会同时只有一个成员变量，并且所有成员公用
+   一个地址
+
+这就是这三个关键字作为类时的区别。
+其实struct和union在C++最主要的用途是可以用来作为POD，然后实现C访问C++的对象，一次实现C
+和C++之间的兼容性
+
+关于什么是有意义的构造函数，析构函数，什么是POD，有兴趣的可以去查阅相关书籍。
+以后我也会专门介绍一下。
