@@ -59,7 +59,36 @@ Windows编程（0）
 
 
 软件工程（1）
+软件开发和管理中常用的管理学定律和浅析
+
+
 编程语言（18）
+深入Go语言模型(10)：goroutine的底层调度实现
+深入Go语言模型(9)：栈内存管理与逃逸分析
+深入Go语言模型(8)：Go语言内存模型, 内存分配与回收
+深入Go语言模型(7)：channel的底层实现详解
+如何研究编程语言特性--由浅入深理解C&C++的整数提升
+深入Go语言模型6：Go进程启动过程分析
+深入Go语言模型5：panic和recover异常处理机制底层实现分析
+深入Go语言模型(4)：defer的底层实现与使用注意事项
+Go语言使用中的Tips(1): IPV4和IPV6判断的陷阱
+深入Go语言模型(3)：各种数据结构的内存模型详解(array, slice, map, string, struct, interface等)
+深入Go语言模型(2)：Go语言汇编指令简介
+深入Go语言模型(1)：interface的底层详解
+Go语言Actor开发框架protoactor（oscar）详解与基本使用
+与Thoughtworks专家谈函数式编程
+【袁英杰】类与封装
+【袁英杰】多态，OO与FP： OO NOT SUCKS, YOU DO
+【袁英杰】Immutability: The Dark Side
+与Scala之父Martin Odersky教授交流---Scala语言的本质与发展
+
+
+
+
+
+
+
+
 TDD&BDD（0）
 开源框架（0）
 
