@@ -1,0 +1,761 @@
+7      管道OS介绍
+7.1      管道OS的定位
+管道OS是公司的三大OS（CloudOS、管道OS、TelcoOS）之一，电信云IaaS、PaaS、SaaS三层中的PaaS（即P层）就是管道OS，未来管道操作系统将会面向整个公司的管道产品。Fenix是管道OS的另外一个名字，名字取自Phenix（凤凰）的谐音。
+
+http://3ms.huawei.com/hi/showimage-19444821-11343-0eb8378c6c8b0a3eb9e723dcb5a42a57.jpg
+
+7.2      管道OS的架构（Fenix架构）
+管道OS=软件基础框架+网络P层
+
+ 
+
+
+
+NPS主要用于公共OM、部署、设备管理及软件包资源管理
+NLS_IP用于IP路由及IP转发服务
+为其它NLS_APP应用提供基础SSP/SMP及IP协议栈
+NPS/NLS间松耦合通信框架（Fabric、Base平面）
+ 
+
+7.3      管道OS部署示例
+利用管道OS上有2层含义：
+
+l  产品网元利用管道的NLS组件，包括SMP，SSP，IP&转发组件，最大化的共享
+
+l  产品网元运行在NPS提供的虚拟I层环境中，快速利用管道OS提供各类IP服务能力
+
+ 
+
+
+
+l  NPS(Network Physical System)
+
+是一个运行系统，提供P层服务:
+
+n  设备管理等I层功能（仅NE路由器类硬件）
+
+n  逻辑资源管理，包括向MANO申请VM资源等
+
+n  部署管理，将逻辑网元部署到VM/单板上，并完成IP配置等
+
+n  松耦合服务总线，完成NLS服务间通信
+
+n  配置代理（连接网管的配置代理）
+
+l  IP服务
+
+是一个可独立运行部件：
+
+n  IP控制器服务（IPL2/L3控制协议）
+
+n  前置路由器服务
+
+n  未来提供DB等服务，可将网络产品转为公有服务
+
+l  NLS（Network Logic System）
+
+逻辑网元，各个NLS相互独立，各自SMP连接网管与客户端，允许SMP异构，其中管道OS提供NLS的组件：
+
+n  SMP组件（VRP SMP）
+
+n  SSP组件（公司统一的Dopra SSP）
+
+n  IP&转发组件（提供L2/L3软转发）
+
+8      Docker介绍
+8.1      Docker基本介绍
+
+
+docker是由PAAS供应商docker(原dotcloud)开源的容器引擎，利用linux 容器技术，提供了能够类似于虚拟机的轻量级虚拟化解决方案。它让开发者将应用和应用的依赖打包成镜像以容器的方式在OS上运行，实现应用的快速分发和部署。(Buld once, run everywhere)
+
+Docker组件:
+
+l  docker  client 和docker daemom
+
+l  docker  image
+
+l  docker  registry和docker  hub
+
+l  docker容器
+
+ 
+
+Docker的初衷也就是将各种应用程序和他们所依赖的运行环境打包成标准的container/image,进而发布到不同的平台上运行：
+
+http://img.blog.csdn.net/20140306094705468
+
+8.2      Docker与LXC有什么不同
+基本上可以认为目前的Docker是LXC的一个高级封装,提供了各种辅助工具和标准接口方便你使用LXC,你可以依靠LXC和各种脚本实现与docker类似的功能，就像你不使用APT/yum等工具也可以自己搞定软件包安装一样，你使用他们的关键原因是方便易用！
+
+ 
+
+实际使用中，一般不用关心底层LXC的细节,同时也不排将来docker实现基于非LXC方案的可能性。
+
+ 
+
+在LXC的基础上, Docker额外提供的Feature包括：标准统一的打包部署运行方案， 历史版本控制， Image的重用，Image共享发布等等。
+
+ 
+
+8.3      容器和VM的比较
+Docker基于容器，容器与VM相比，可以提供更高的资源利用率和性能，更快速的部署和伸缩速度，但在安全隔离上没有VM好。
+
+
+
+ 
+
+8.4      Docker的底层技术
+8.4.1        Docker的容器化技术介绍
+
+
+Docker容器是使用linux的原始功能来实现安全与隔离，比如namespaces, cgroups, capabilities等。
+
+0.9版本起，Docker包含了libcontainer库作为它直接虚拟化的方法，这个功能由Linux内核提供。 此外，它还通过 LXC, systemd-nspawn,和libvert使用了抽象虚拟接口。
+这些虚拟化库全部利用了Linux的原始容器（参见上图）namespaces，cgroups，capabilities等等。
+
+Docker在一个包装中联合了以上功能，并称之为容器格式。默认的容器格式被称为libcontainer。
+Docker也支持使用LXC的传统Linux容器。在将来，Docker可能会支持其他的容器格式，比如结合BSD jails或者Solaris Zones。
+
+8.4.2        Namespace介绍
+Linux Namespace是Linux提供的一种内核级别环境隔离的方法。不知道你是否还记得很早以前的Unix有一个叫chroot的系统调用（通过修改根目录把用户jail到一个特定目录下），chroot提供了一种简单的隔离模式：chroot内部的文件系统无法访问外部的内容。Linux Namespace在此基础上，提供了对UTS、IPC、mount、PID、network、User等的隔离机制。
+
+举个例子，我们都知道，Linux下的超级父亲进程的PID是1，所以，同chroot一样，如果我们可以把用户的进程空间jail到某个进程分支下，并像chroot那样让其下面的进程 看到的那个超级父进程的PID为1，于是就可以达到资源隔离的效果了（不同的PID namespace中的进程无法看到彼此）
+
+ 
+
+Docker使用的linux命名空间：
+
+l  pid namespace
+
+用作区分进程（PID: Process ID）。
+
+容器中运行的进程就如同在普通的Linux系统运行一样，尽管它们和其他进程共享一个底层内核。
+
+l  net namespace
+
+用作管理网络接口。
+
+DNAT允许你单独配置主机中每个用户的的网络，并且有一个方便的接口传输它们之间的数据。
+
+当然，你也可以通过使用网桥用物理接口替换它。
+
+l  ipc namespace
+
+用作管理对IPC (IPC: InterProcess Communication)资源的访问。
+
+l  mnt namespace
+
+用作管理mount-points (MNT: Mount)。
+
+l  uts namespace
+
+用作区分内核和版本标识符(UTS: Unix Timesharing System)。
+
+l  user namespace
+
+User namespace是最新的子用户空间，它允许你创建独立于其他namespace之外的用户。这是通过GID和UID映射实现的。
+
+ 
+
+8.4.3        Cgroups介绍
+Linux CGroup全称Linux Control Group， 是Linux内核的一个功能，用来限制，控制与分离一个进程组群的资源（如CPU、内存、磁盘输入输出等）。这个项目最早是由Google的工程师在2006年发起（主要是Paul Menage和Rohit Seth），最早的名称为进程容器（process containers）。在2007年时，因为在Linux内核中，容器（container）这个名词太过广泛，为避免混乱，被重命名为cgroup，并且被合并到2.6.24版的内核中去。然后，其它开始了他的发展。
+
+Linux CGroupCgroup 可​​​让​​​您​​​为​​​系​​​统​​​中​​​所​​​运​​​行​​​任​​​务​​​（进​​​程​​​）的​​​用​​​户​​​定​​​义​​​组​​​群​​​分​​​配​​​资​​​源​​​ — 比​​​如​​​ CPU 时​​​间​​​、​​​系​​​统​​​内​​​存​​​、​​​网​​​络​​​带​​​宽​​​或​​​者​​​这​​​些​​​资​​​源​​​的​​​组​​​合​​​。​​​您​​​可​​​以​​​监​​​控​​​您​​​配​​​置​​​的​​​ cgroup，拒​​​绝​​​ cgroup 访​​​问​​​某​​​些​​​资​​​源​​​，甚​​​至​​​在​​​运​​​行​​​的​​​系​​​统​​​中​​​动​​​态​​​配​​​置​​​您​​​的​​​ cgroup。
+
+主要提供了如下功能：
+
+l  Resource limitation: 限制资源使用，比如内存使用上限以及文件系统的缓存限制。
+
+l  Prioritization: 优先级控制，比如：CPU利用和磁盘IO吞吐。
+
+l  Accounting: 一些审计或一些统计，主要目的是为了计费。
+
+l  Control: 挂起进程，恢复执行进程。
+
+使​​​用​​​cgroup，系​​​统​​​管​​​理​​​员​​​可​​​更​​​具​​​体​​​地​​​控​​​制​​​对​​​系​​​统​​​资​​​源​​​的​​​分​​​配​​​、​​​优​​​先​​​顺​​​序​​​、​​​拒​​​绝​​​、​​​管​​​理​​​和​​​监​​​控​​​。​​​可​​​更​​​好​​​地​​​根​​​据​​​任​​​务​​​和​​​用​​​户​​​分​​​配​​​硬​​​件​​​资​​​源​​​，提​​​高​​​总​​​体​​​效​​​率​​​。
+
+在实践中，系统管理员一般会利用CGroup做下面这些事（有点像为某个虚拟机分配资源似的）：
+
+l  隔离一个进程集合（比如：nginx的所有进程），并限制他们所消费的资源，比如绑定CPU的核。
+
+l  为这组进程 分配其足够使用的内存
+
+l  为这组进程分配相应的网络带宽和磁盘存储限制
+
+l  限制访问某些设备（通过设置设备的白名单）
+
+
+
+总之，cgroups可以让Docker：
+
+l  实现组进程并且管理它们的资源总消耗。
+
+l  分享可用的硬件资源到容器。
+
+l  限制容器的内存和CPU使用。
+
+l  可以通过更改相应的cgroup来调整容器的大小。
+
+l  通过检查Linux中的/sys/fs/cgroup对照组来获取容器中的资源使用信息。
+
+l  提供了一种可靠的结束容器内所有进程的方法。
+
+8.4.4        Capabilities介绍
+Linux使用的是“POSIX capabilities”。这些权限是所有强大的root权限分割而成的一系列权限。在Linux manpages上可以找到所有可用权限的清单。Docker丢弃了除了所需权限外的所有权限，使用了白名单而不是黑名单。
+
+一般服务器（裸机或者虚拟机）需要以root权限运行一系列进程。包括：
+
+l  SSH
+
+l  cron
+
+l  syslogd
+
+l  硬件管理工具 (比如负载模块)
+
+l  网络配置工具 (比如处理DHCP, WPA, or VPNs)等。
+
+
+每个容器都是不同的，因为几乎所有这些任务都由围绕容器的基础设施进行处理。默认的，Docker启用一个严格限制权限的容器。大多数案例中，容器不需要真正的root权限。举个例子，进程（比如说网络服务）只需要绑定一个小于1024的端口而不需要root权限：他们可以被授予CAP_NET_BIND_SERVICE来代替。因此，容器可以被降权运行：意味着容器中的root权限比真正的root权限拥有更少的特权。
+Capabilities只是现代Linux内核提供的众多安全功能中的一个。为了加固一个Docker主机，你可以使用现有知名的系统：
+
+l  TOMOYO
+
+l  AppArmor
+
+l  SELinux
+
+l  GRSEC, etc.
+
+8.4.5        Docker文件系统：Aufs
+Docker在启动容器的时候，需要创建文件系统，为rootfs提供挂载点。最初Docker仅能在支持Aufs文件系统的Linux发行版上运行，但是由于Aufs未能加入Linux内核，为了寻求兼容性、扩展性，Docker在内部通过graphdriver机制这种可扩展的方式来实现对不同文件系统的支持。目前，Docker支持Aufs，Devicemapper，Btrfs和Vfs四种文件系统。
+
+典型的Linux文件系统由bootfs和rootfs两部分组成，bootfs(boot file system)主要包含 bootloader和kernel，bootloader主要是引导加载kernel，当kernel被加载到内存中后 bootfs就被umount了。 rootfs (root file system) 包含的就是典型 Linux 系统中的/dev，/proc，/bin，/etc等标准目录和文件。
+
+http://cdn4.infoqstatic.com/statics_s2_20151203-0245/resource/articles/analysis-of-docker-file-system-aufs-and-devicemapper/zh/resources/0328090.png
+
+ 
+
+AUFS是一种Union File System，所谓UnionFS就是把不同物理位置的目录合并mount到同一个目录中。UnionFS的一个最主要的应用是，把一张CD/DVD和一个硬盘目录给联合 mount在一起，然后，你就可以对这个只读的CD/DVD上的文件进行修改（当然，修改的文件存于硬盘上的目录里）。
+
+Docker镜像典型结构如下：
+
+http://cdn1.infoqstatic.com/statics_s1_20151203-0208/resource/articles/analysis-of-docker-file-system-aufs-and-devicemapper/zh/resources/0328091.png
+
+ 
+
+8.4.6        Docker文件系统：Device Mapper
+DeviceMapper是Linux 2.6被引入成为了Linux最重要的一个技术。它在内核中支持逻辑卷管理的通用设备映射机制，它为实现用于存储资源管理的块设备驱动提供了一个高度模块化的内核架构，（当前比较流行的 Linux 下的逻辑卷管理器如 LVM2（Linux Volume Manager 2 version)、EVMS(Enterprise Volume Management System)、dmraid(Device Mapper Raid Tool)等都是基于该机制实现的。）
+
+它包含三个重要的对象概念，Mapped Device、Mapping Table、Target device。
+
+Mapped Device 是一个逻辑抽象，可以理解成为内核向外提供的逻辑设备，它通过Mapping Table描述的映射关系和 Target Device 建立映射。Target device 表示的是 Mapped Device 所映射的物理空间段，对 Mapped Device 所表示的逻辑设备来说，就是该逻辑设备映射到的一个物理设备。
+
+Mapping Table里有Mapped Device 逻辑的起始地址、范围、和表示在 Target Device 所在物理设备的地址偏移量以及Target 类型等信息（注：这些地址和偏移量都是以磁盘的扇区为单位的，即 512 个字节大小，所以，当你看到128的时候，其实表示的是128*512=64K）。
+
+DeviceMapper 中的逻辑设备Mapped Device不但可以映射一个或多个物理设备Target Device，还可以映射另一个Mapped Device，于是，就是构成了一个迭代或递归的情况，就像文件系统中的目录里除了文件还可以有目录，理论上可以无限嵌套下去。
+
+DeviceMapper在内核中通过一个一个模块化的 Target Driver 插件实现对 IO 请求的过滤或者重新定向等工作，当前已经实现的插件包括软 Raid、加密、多路径、镜像、快照等，这体现了在 Linux 内核设计中策略和机制分离的原则。如下图所示。从图中，我们可以看到DeviceMapper只是一个框架，在这个框架上，我们可以插入各种各样的策略（让我不自然地想到了面向对象中的策略模式），在这诸多“插件”中，有一个东西叫Thin Provisioning Snapshot，这是Docker使用DeviceMapper中最重要的模块。
+
+图片来源：http://people.redhat.com/agk/talks/FOSDEM_2005/
+
+9      NFV架构介绍
+9.1      NFV的发展驱动
+
+
+ 
+
+9.2      什么是NFV (Network Functions Virtualization)
+l  NFV(网络功能虚拟化)，用现代化的虚拟化技术，统一网络应用的运行环境，降低成本，提高效率、缩短TTM。
+
+l  关键诉求：基于标准的大容量服务器、存储和以太网，不同Vendor提供的应用，以软件形式，远程自动部署在统一的基础设施上
+
+l  2013年1月成立ETSI NFV ISG(行业规范工作组)在进行相关标准制定
+
+ 
+
+l  软硬件解耦：网络应用基于通用的硬件基础设施上。
+
+l  开放：软硬件模块化，互不依赖，易于集成
+
+l  自动化：完全自动远程将软件安装到通用硬件上并进行自动管理.
+
+ 
+
+
+
+ 
+
+9.3      NFV基本概念
+
+
+ 
+
+9.4      NFV参考架构
+
+
+9.5      标准协议主要功能定义
+网元生命周期管理(VNF Manager)
+
+网元部署
+
+根据网元部署要求，完成网元安装软件安装，提供手工部署和北向两种能力
+
+网元监控
+
+采集网元和I层的KPI，做网元扩容/缩容策略分析
+
+网元扩容
+
+根据网元监控结果和扩容策略，手工/自动发起扩容操作
+
+网元缩容
+
+根据网元监控结果和缩容策略，手工/自动发起缩容操作
+
+网元退网
+
+根据网元部署要求，完成网元销毁
+
+网元配置
+
+根据业务/网络要求配置网元数据
+
+网元升级
+
+根据网元版本要求，完成网元软件升级，提供手工和北向两种能力
+
+网元打补丁
+
+根据网元版本要求，完成网元补丁，提供手工和北向两种能力
+
+ 
+
+业务生命周期管理(Orchestrator)
+
+业务部署
+
+根据整网业务规划，分解出对各厂商网元的需求，调度申请I层资源，与VNF Manager配合完成网元部署以及业务数据配置
+
+业务监控
+
+采集业务类的KPI，做扩容/缩容策略分析
+
+业务扩容
+
+根据监控结果和扩容策略，自动发起业务扩容操作，与VNF Manager配合完成业务扩容数据配置和网元扩容
+
+业务缩容
+
+根据监控结果和缩容策略，自动发起业务缩容操作，与VNF Manager配合完成业务缩容数据配置和网元缩容
+
+业务退网
+
+根据业务需求，分解出对各厂商网元的部署要求，与VNF配合完成业务数据取消及网元退网
+
+ 
+
+ 
+
+资源生命周期管理(VIM)
+
+资源分配
+
+根据资源要求，分配网络资源、存储资源、计算资源，提供手工和北向两种能力
+
+ 
+
+EMS
+
+统一管理云化/传统网元
+
+一套EMS能同时管理云化和传统网元，不能为云化网元单独建设EMS
+
+根据网元/业务部署&扩容＆缩容的情况，实时变更EMS上的数据，防止网元脱管
+
+云化网元北向告警定位信息合并
+
+保持以网元粒度上报告警，定位信息中继续提供硬件信息，不能只有虚拟机信息
+
+云化网元北向话统信息合并
+
+保持原来的话统数据内容和格式，涉及硬件的KPI标要继续上报
+
+9.6      华为NFV/NFVI解决方案
+
+
+9.7      OPNFV介绍
+OPNFV是NFV （网络功能虚拟化）开放平台项目，由Linux基金会创建并于2014年9月30日宣布成立。该开源社区旨在整合现有的各开源项目，提供运营商级别的综合开源平台以加速新产品和服务的引入，促进NFV产业的发展。
+
+
+
+ 
+
+9.8      OPNFV现阶段聚焦范围
+opnfv_diagram_FINAL.jpg
+
+ 
+
+9.9      CloudMaestro vCMM在MANO协议中的位置
+CloudMaestro vCMM是MANO的一个部件，负责网元的生命周期管理；提供包括部署/扩容/缩容/下线等自动化能力。
+
+
+
+ 
+
+10  软件定义一切（SDN，SDS，SDDC）
+10.1   SDN介绍
+SDN（Software Defined Network,软件定义网络），SDN是一种新型的网络架构，它的设计理念是将网络的控制平面与数据转发平面进行分离，并实现可编程化控制。在典型的SDN架构定义中，最上层为应用层，包括各种不同的业务和应用；控制层主要负责处理数据平面资源的编排，维护网络拓扑、状态信息等；基础设施层负责基于流表的数据处理、转发和状态收集。
+
+ 
+
+IETF定义SDN(Software Driven Networks )
+
+
+
+ 
+
+SDN基本架构
+
+
+
+ 
+
+10.2   SDS介绍
+l  IDC通过对SDS市场的深入了解和研究，对SDS定义如下：SDS将数据中心或者跨数据中心的各种存储资源抽象化、池化，以服务的形式提供给应用，满足应用按需(如容量、性能、QoS、SLA等)自动化使用存储的需求。
+
+l  VMware做为SDS概念的创造者，对SDS定义如下：
+
+软件定义的存储产品是一个将硬件抽象化的解决方案，它使你可以轻松地将所有资源池化并通过一个友好的用户界面（UI）或API来提供给消费者。一个软件定义的存储的解决方案使得你可以在不增加任何工作量的情况下进行纵向扩展（Scale-Up）或横向扩展（Scale-Out）。
+
+l  EMC的软件定义存储：
+
+http://d.hiphotos.baidu.com/news/w%3D638/sign=c3b95b6551e736d158138f0ba3514ffc/5fdf8db1cb1349547294fddd534e9258d0094a84.jpg
+
+ 
+
+l  SNIA认为，SDS需要满足的是：提供自助的服务接口，用于分配和管理虚拟存储空间
+
+SDS应该包括如下功能:
+
+·自动化  Automation– Simplified management that reduces the cost of maintaining the storage infrastructure.
+
+· 标准接口 Standard Interfaces – APIs for the management, provisioning and maintenance of storage devices and services.
+
+· 虚拟数据路径 Virtualized Data Path – Block, File and Object interfaces that support applications written to these interfaces.
+
+· 扩展性 Scalability – Seamless ability to scale the storage infrastructure without disruption to availability or performance.
+
+· 透明性Transparency – The ability for storage consumers to monitor and manage their own storage consumption against available resources and costs.
+
+ 
+
+ 
+
+下列这张综合信息图涵盖了软件定义存储的全部要点：
+
+http://d.hiphotos.baidu.com/news/w%3D638/sign=0b72e047c6fdfc03e578e0bbec3e87a9/43a7d933c895d1436ec5f29a76f082025baf07d3.jpg
+
+10.3   SDDC介绍
+http://a.hiphotos.baidu.com/news/w%3D638/sign=4b6bcb4db24543a9f51bf9cf26168a7b/1e30e924b899a901b47a4e8f18950a7b0208f538.jpg
+
+软件定义的数据中心，从最直观的定义来看，就是虚拟化、软件化数据中心的其一切资源。虚拟化是从服务器虚拟化开始的，虚拟机带来的好处很多客户都已经非常了解。但是网络、存储是物理性很强的资源，虚拟机虽然带来了一些灵活性，没有办法在其他资源上体现。软件定义的数据中心就是把数据中心所有的传统、物理、硬件的资源进行虚拟化、软件化，这是一个比较直观的定义。
+
+
+
+ 
+
+ 
+
+VMware就是要将网络，存储，安全性，可靠性，运营等全部软件化，虚拟化，对外提供数据中心的服务。
+
+11  云计算行业情况介绍
+11.1   公有云玩家竞合概览
+
+
+从FY2013云服务收入来看：
+
+l  亚马逊AWS是公有云领域的综合领导者，IaaS领域的霸主；
+
+l  MS和Salesforce 在PaaS领域处于领先地位；
+
+l  Salesforce在SaaS领域属于第一；
+
+l  从云服务收入来看：Salesforce、AWS、Microsoft位于前三甲。
+
+ 
+
+从FY2013成长性来看：
+
+l  以PaaS为核心的Google因为开拓了IaaS，所以增长率很高。
+
+l  IBM对于Softlayer的收购，增长率很高
+
+l  AWS增长绝对值最高，增长率也较高，主要来自于其IaaS业务影响力增加和实际市场的成长
+
+l  MS在FY2013的成长性较为普通
+
+ 
+
+综合来看：
+
+l  AWS、Salesforce属于第一集团
+
+l  Microsoft、IBM、Google属于第二集团
+
+l  Oracle、SAP、Workday属于第三集团
+
+ 
+
+11.2   私有云提供商
+
+
+11.3   AWS—云服务的领先者
+
+
+ 
+
+11.4   Windows Azure平台介绍
+开发人员致富捷径 探究九大云开发平台 
+
+Windows Azure Platform属于微软Windows平台即服务(PaaS)产品，它运行在微软数据中心的服务器和网络基础设施上的，通过公共互联网对外提供服务，它由高扩展性(弹性)云操作系统，数据存储网络和相关服务组成，服务都是通过物理或逻辑(虚拟的)Windows Server 2008实例提供。Windows Azure软件开发包(SDK)提供了一个开发版基于云的服务，以及开发、部署和管理Windows Azure中可扩展服务需要的工具和API，包括适用于标准Azure应用程序的Visual Studio 2008或2010模板。
+
+ 
+
+
+
+11.5   思杰Citrix虚拟化解决方案
+Citrix XenServer 是 Citrix 推出的完整服务器虚拟化平台。XenServer 软件包中包含创建和管理在Xen（具有近乎本机性能的开源半虚拟化虚拟机管理程序）上运行的 x86 计算机部署的所需的所有功能。XenServer 已同时针对 Windows 和 Linux 虚拟服务器进行优化。
+
+XenServer 直接在服务器硬件上运行而不需要底层操作系统，因而是一种高效且可扩展的系
+
+统。XenServer 的工作方式是从物理机中提取元素（例如硬盘驱动器、资源和端口），然后将其分配给物理机上运行的虚拟机。
+
+虚拟机 (VM) 是完全由软件组成的计算机，可以像物理机一样运行自己的操作系统和应用程序。VM 的运行方式完全类似于物理机，并且包含自己的虚拟（基于软件的）CPU、RAM、硬盘和网络接口卡(NIC)。
+
+XenServer 可用于创建 VM、生成 VM 磁盘快照以及管理 VM 工作负载。
+
+ 
+
+Citrix第三代XenServer -“Windsor”架构
+
+http://3ms.huawei.com/hi/showimage-11024659-85185-8ca9d2d93913210aaab8dc71fc832b5f.jpg
+
+ 
+
+Citrix XenDesktop 是一个桌面虚拟化和 VDI解决方案，可以将完整的 Windows 桌面体验作为即需即用服务交付给任何位置的任何用户。无论用户是任务型、知识型或移动型工作人员，XenDesktop 均可以快速安全地在提供高清晰度用户体验的同时将单个应用程序或完整的桌面交付给用户。
+
+wKioL1LgxYDwVlx3AAIX18fYRCM873.jpg
+
+11.6   IBM云解决方案
+IBM云计算解决方案：“蓝云”6+1解决方案:
+
+IBM“蓝云”解决方案是IBM云计算中心经过多年的探索和实践开发出来的先进的基础架构管理平台。该方案结合了业界最新技术，充分体现云计算理念，已在IBM内部成功运行多年，并在全球范围内有众多客户案例。
+
+ “蓝云”解决方案由以下部分构成：
+
+l  需要纳入云计算中心的软硬件资源。硬件可以包括x86或Power的机器、存储服务器、交换机和路由器等网络设备。软件可以包括各种操作系统、中间件、数据库及应用，如Aix、Linux、DB2、WebSphere、Lotus、Rational等。
+
+l  “蓝云”管理软件及IBM Tivoli管理软件。“蓝云”管理软件由IBM云计算中心开发，专门用于提供云计算服务。
+
+l  “蓝云”咨询服务、部署服务及客户化服务。“蓝云”解决方案可以按照客户的特定需求和应用场景进行二次开发，使云计算管理平台与客户已有软件硬件进行整合。
+
+该解决方案可以自动管理和动态分配、部署、配置、重新配置以及回收资源，也可以自动安装软件和应用。“蓝云”可以向用户提供虚拟基础架构。用户可以自己定义虚拟基础架构的构成，如服务器配置、数量，存储类型和大小，网络配置等等。用户通过自服务界面提交请求，每个请求的生命周期由平台维护。下图是蓝云系统架构图。该方案可以支持6+1种应用场景，因此被称为6+1解决方案
+
+http://3ms.huawei.com/hi/showimage-1621233-27295-4be68e15c7368d9cd767d50a81645ed8.jpg
+
+11.7   Google云服务
+Google App Engine允许开发者在 Google基础架构上运行Web应用程序。Google App Engine具备动态Web服务功能，可根据访问量和数据存储需要的增长轻松扩展。
+
+开发人员致富捷径 探究九大云开发平台 
+
+11.8   阿里云介绍
+l  2009年，阿里巴巴集团创立阿里云品牌
+
+l  国内最大公有云服务提供商
+
+主要领域：互联网、移动APP、音视频、游戏、电商
+
+2013年后，金融机构也开始上云
+
+阿里搭建了面向银行、保险公司、券商的金融云
+
+l  2014年6月，阿里云服务客户数超过140万
+
+l  2014年12月，12306网站75%的余票查询系统迁移至阿里云计算平台，以分担春运流量洪峰带来的压力
+
+l  政府机构、央企、大型民营企业开始大量投向阿里云
+
+ 
+
+阿里云的主要产品：
+
+
+
+ 
+
+阿里以自研的飞天平台（Apsara）为基础提供云服务
+
+
+
+12  我们在NFV云下的挑战
+12.1   CloudCore：满足NFV的标准
+
+
+ 
+
+12.2   形态的转变
+
+
+以AT&T 为代表的大T，希望通过NFV， 来开源节流：
+
+降低TCO：  统一硬件，简化网络设备。
+
+提升收入： 通过业务编排， 更方便的推出新业务，提升TTM，应对OTT威胁。
+
+ 
+
+12.2.1    以硬件为中心 ->以软件为中心
+ 
+
+ATCA
+
+Cloud
+
+变化
+
+交付部件
+
+软硬件一体交付
+
+软件和基础设施分层交付。
+
+基础设施比如：FusionSphere，VMware，开源openstack。COTS硬件比如FS8000， E9000，HPC 7000等。
+
+软件和I层解耦
+
+软件架构
+
+软硬件耦合， HA，通讯等能力依赖于硬件；处理逻辑和数据合并。
+
+基于纯软件构建高可靠的系统，处理逻辑与数据分离。
+
+软件架构云化重构，处理逻辑与数据分离， 基于软件构筑高可用性；
+
+ 
+
+软件部署
+
+和硬件框槽绑定， 软件部署是固定的； 扩容需要手工配置操作。
+
+ 
+
+软件部署 是自动部署， 需要支持根据话务量的变化进行弹性伸缩， 自动扩容。
+
+支持自动部署和弹性伸缩。
+
+ 
+
+集成交付
+
+水平集成
+
+ 
+
+垂直集成 ＋ 水平集成
+
+垂直集成， 需要具备建立NFV云的能力
+
+1 新增NFV云的设计、实施、验证的需求。
+
+2 垂直集成中， 要增加对APP的需求核对和SLA验证；
+
+ 
+
+12.2.2    技术架构的变化
+“NFV架构”是NFV时代的关键技术割裂点，是当前各厂家竞争力的关键差异点，  核心收益如下：
+
+1 适应云化故障常态化： 任何VM故障都不会引入网元也业务中断
+
+2 更容易弹性，由于数据没有绑定到固定VM上， 扩缩容速度更快。   
+
+
+
+ 
+
+12.2.3    故障影响业务 ->故障只影响容量
+在业务层，全面落实分布式HA，增强基于软件的故障检测、亚健康检测，在硬件资源、虚拟资源故障后快速触发业务倒换，保证故障时快速倒换。
+
+针对云化特点（CPU波动、硬件能力不均，硬件故障频发等），进行VNF软件适应能力调整 , 落地 队列流控、负载均衡、程序数据分离。通过程序数据分离，队列流控，实现故障时不影响业务，只影响容量。
+
+12.2.4    有限的业务 -> 网络开放，更丰富的业务
+12.3   软件工程师的转变
+l  从嵌入式开发转换到IT软件开发
+
+我们可以从下面这张图看出嵌入式软件开发和IT软件，互联网软件开发的区别：
+
+
+
+ 
+
+转变1：主从控制 、数据以计算为中心－>全分布式、计算以数据为中心
+
+转变2：模块级解耦－> 服务级SOA解耦
+
+转变3：闭源开发－> 开放、开源
+
+转变4：自顶向下，追求一次做到最优－> 敏捷迭代，逐步逼近最优
+
+转变5：硬件定义Everything -> 软件定义Everything
+
+ 
+
+l  从传统开发模式转换到社区开发模式
+
+1.         社区式的开源开发模式：
+
+通过开源社区的开发模式，来提高开发效率
+
+
+
+ 
+
+2.         Devops：
+
+DevOps（英文Development和Operations的组合）是一组过程、方法与系统的统称，用于促进开发（应用程序/软件工程）、技术运营和质量保障（QA）部门之间的沟通、协作与整合。它的出现是由于软件行业日益清晰地认识到：为了按时交付软件产品和服务，开发和运营工作必须紧密合作。
+
+
+
+【主要措施】：
+
+l  减少每次发布变更范围。频繁发布、增量部署。
+
+l  加强开发与运营协调。通过协调机制工具，弥合开发运营间的技术&沟通鸿沟。
+
+l  自动化。自动化和标准化环境管理，减少出错。
+
+【业界实践】
+
+l  【Google】: 专职团队负责软件工具和环境，支撑大规模、高速度开发。含：开发&本地化工具、构建平台、测试平台、度量可视化等。
+
+l  【IBM】：软件开发与交付的一门哲学。提倡将开发机构的文化、流程和工具整合到一起的集成软件交付方式，跨越从业务规划、创建、交付到反馈的整个软件开发生命周期。
+
+在一个统一平台中，统一提供协作的、透明的、有效的端到端的软件交付过程改善开发流程及风险管理。
+
+【实施DevOps已看到的收益】：
+
+l  提升软件部署质量（占63%）
+
+l  更频繁的软件发布（63%）
+
+l  提升IT（运维运营）过程和需求的可视化程度（61%）
+
+l  改变合作协同文化（55%）
+
+l  响应更多的业务需求（55%）
+
+l  开发更敏捷（51%）
+
+l  管理过程更敏捷（45%）
+
+l  提升代码质量（38%）
