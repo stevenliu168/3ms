@@ -1,0 +1,320 @@
+与Scala之父Martin Odersky教授交流
+--Scala语言的本质与发展
+
+ 
+
+2016年3月16日Martin Odersky教授来深圳进行了一次Scala的培训，下午进行了一个小型的圆桌会议，对于Scala语言进行了研讨。下面将这些培训和研讨的主要内容提炼一下，也让大家更好地了解Scala语言的优缺点与后续编程语言规划。
+
+ 
+
+1      Scala语言的特点
+•       Highly productive, very concise, data-focused
+
+生产率高，语言简洁，关注数据处理
+
+•       Fuses object-oriented & functional; very expressive, composable and declarative
+
+融合了面向对象和函数式，非常具有表现力，组合型和声明性
+
+•       Fewer runtime errors due to static typing
+
+静态类型减少了很多运行时错误
+
+•       High performance on the JVM
+
+在JVM上具有高性能
+
+•       Lower risk with Scala and Java seamless interoperability – leverage existing Java code and build new projects in Scala
+
+Scala和Java可以无缝地协同使用。遗留的Java和新构建的Scala项目可以一起工作
+
+•       Built for multicore and cloud era, with significant ongoing research investment
+
+针对多核和云计算时代，Scala正在进行大量的技术研究
+
+ 
+
+ 
+
+1.1      Scala是一个可生长的语言
+Scala语言不是单纯将面向对象和函数式编程糅合在一起，而是一门可以被无限扩展的语言。
+
+l  Scala可以通过添加库（领域特定或者通用的）来建模成一种新的语言
+
+l  Scala可以适合任何小系统和大系统，可以平滑从小系统到升级到大系统
+
+l  Scala具有可伸缩的语法，可伸缩的类型系统，用户自定义的运算符，高阶函数等，这些都可以让Scala很方便地构造与新的DSL。
+
+ 
+
+
+
+ 
+
+Scala这种成长性是一个双刃剑，DSL可以破坏语言的用户社区，不管一个语言是DSL还是通用语言都不可能被所有人喜欢。
+
+总的来说，Scala这种可生长性是一个伟大的实验，但是在大规模生产中需要统一的遵从规范和纪律。
+
+1.2      Scala是一个模块化的语言
+
+
+ 
+
+函数式编程对于模块化编程是非常有必要的，因为FP(Function Programming)可以让模块自由的组合起来。
+
+ 
+
+
+
+ 
+
+上面这些fundamental actions是Scala编程最本质的东西。
+
+ 
+
+所谓的模块可以使下面的任何形式：
+
+–  A function
+
+–  An object
+
+–  A class
+
+–  An actor
+
+–  A stream transform
+
+–  A microservice
+
+ 
+
+模块化编程就是聚焦这些模块如何组合，对于大系统来说，Scala可以让我们感知不到底层组件的存在。
+
+ 
+
+那么Scala是如何进行模块化编程的：
+
+
+
+ 
+
+ 
+
+2      Scala的生态圈介绍
+
+
+ 
+
+2.1      Akka
+Akka是一个简单的面向消息编程模型，可以用来构建多线程应用程序
+
+Akka可以非常简单地构建一个可靠的并发应用
+
+Akka提高了抽象的程度，你可以不用关注共享状态，内存可见，线程通知，锁，并发集合等。Akka提供了高CPU利用率，低时延，高吞吐量和扩展性。
+
+ 
+
+什么是Actor？
+
+AM（Actor Module）表示对象和他们之间的交互 ，就像人类的组织结构那样，有一定物理原则。
+
+一个Actor实体表示：
+
+l  具有身份的对象
+
+l  具有一个行为
+
+l  只通过异步消息和外界交付
+
+2.2      大数据处理
+
+
+ 
+
+Scala对于大数据处理的代码是非常简洁的，也非常灵活，下面是
+
+Java使用Hadoop的代码对比Scala使用Spark的代码比较：
+
+ 
+
+
+
+ 
+
+左边是Java代码，右边是Scala的代码，所以Scala对于大数据处理非常强大，优美和可组合型的。
+
+ 
+
+2.3      其他Scala优秀框架
+l  Kafka：仅次于Spark的一个Scala产品，一种高吞吐量的分布式发布订阅消息系统。
+
+l  Paly&lift：非常优秀的Web框架
+
+l  Twitter开源了一些scala产品：rpc框架finagle，分布式链路跟踪框架zipkin
+
+l  Samza：分布式流处理框架
+
+l  基于类型的系统框架：scalaz， shapless
+
+l  测试框架：Specs， ScalaTest
+
+l  SBT：Scala项目构建工具
+
+l  Slick：就是以前的ScalaQuery，用来写SQL
+
+3      Scala一些疑问与解答
+Ø  Scala的对程序员的要求
+
+Scala相比于Java有2倍的生产率提升；愿意投入2个月学习的团队，可以用起来；Scala简单的部分，并不难学；14、5岁的孩子也可以学习使用；
+ 关于学习成本或复杂程度，Martin认为Scala与Java 7差不多，但C#和F#应该难2倍，而C++要难10倍。
+
+相对于Go，如果团队成员水平不齐不放心，可以使用；如果团队成员的水平基本相当，足够信任，辅以编程规范，使用Scala就不用太担心。除了first-class 函数外，Scala还有case calss、pattern match、for-comprehension等许多提升产能的特性。
+
+ 
+
+其实这里Scala语言有两个假设：
+
+Scala现在是为聪明人创造的，以后也是为聪明人服务的。Martin Odersky教授认为学习Scala语言的人都是优秀的程序员，所以这个语言给了程序员很灵活的特性，可以自由创造和优化。如果是普通的程序员，或者对于技术没啥追求，仅仅是混口饭吃的怎么办，Martin Odersky也没有想过这个问题，只能通过代码检视来保证。
+
+ 
+
+其次，相信程序员对于Scala语言的优化能力。
+
+Scala新手和老手写出来的代码可能是完全两种风格，可能阅读高手写的代码都有困难。这个就需要程序员非常了解Scala的整套库和工具，了解每种算法的差异，甚至阅读源码，才能写出高效的Scala语言。
+
+ 
+
+另外，Scala是结合了面向对象和函数式编程，如果一个Java程序员写Scala，可能都是写出OO式的Scala，如果一个LISP程序员，可能会写出FP式的Scala，这个应该如何解决？
+
+ 
+
+暂时只有一个办法： 严格的编程规范+有效的code review。
+
+Ø  为什么大家觉得Scala难学
+
+其实Scala的语言特性是很少的，比起C++来说，至少少10倍。那为什么这么难学呢？主要容易产生类比心理：尤其是那些有一定Java经验或者C++经验的，总是将这些语言和Scala做类比，然后发现Scala的语言特性以前都没有听说过，这样说服自己，这个语言太难了，因为他的概念我都没有听说过。
+
+ 
+
+所以学习Scala就需要完全Open，就像中国武侠里面，忘掉以前学的武功，重新学习Scala，你会觉得这个语言是很简单的。
+
+Ø  Scala适用和不适用的应用场景
+
+现在下面几个行业在使用Scala：
+
+l  金融行业：摩根士丹利，高盛等都使用Scala来进行组合分析，金融分析和风险分析。
+
+l  零售业行业：沃尔玛等都使用Scala来进行流通管理
+
+l  初创公司：使用Scala来进行反应式的基础设施建设
+
+l  互联网行业：主要是Twitter等使用Scala来进行大数据处理
+
+ 
+
+Scala不适用的场景：
+
+l  Scala必须使用JVM，所以不能使用JVM的场景就不要使用Scala。
+
+l  Scala对于性能和实时性有一定的损耗，所以对于嵌入式软件开发是不太合适的。
+
+Ø  Scala为什么适用于大数据处理和高并发编程
+
+因为Scala是函数式编程语言，FP的优势就是数字计算，数学逻辑和一堆通用的数学算子（Spark也自定了很多大数据处理的算子）
+
+FP这种声明式的语言让数据处理的代码更清晰，更简洁。
+
+FP的不变性，无副作用性保证了高并发性，这也让高并发和大数据处理更容易。
+
+ 
+
+Functional Programming Working with Data is Mathematics.
+
+ 
+
+Ø  Scala编译慢的问题怎么解决
+
+由于Scala的类型安全和静态类型，所以编译的时候比其他语言Java，C++要慢，但是在代码比较少的时候还是差别不大的。到达几十万行的时候应该就有感觉到慢了。
+
+Scala新一代的编译器dotty平台，应该会对类型系统进行优化, 编译慢的问题暂时没有解决计划。
+
+对于dotty下一代编译器，如果发布以后，估计Scala3.0就来了，估计语法和2.X不兼容。
+
+有兴趣了解dotty的可以去查阅相关资料。
+
+ 
+
+目前Scala编译时通过增量编译来解决慢的问题，比如使用IntelliJ来编译Scala的时候就是增量编译。
+
+Ø  Scala代码质量是否有工具来检测
+
+Scala暂时没有特定的工具来检查代码质量，比如编码规范等，但是findbugs可以通过配置一些策略来支持Scala语言。
+
+Scala后续应该会和Fortify合作，来进行相关的检查。
+
+Ø  Scala的单元测试怎么保证
+
+可以直接使用JUnit, 也可以使用Scala Test来进行单元测试
+
+Ø  Scala的微服务框架
+
+LightBend公司发布了一款开源的微服务框架lagom，这个框架是基于他们的Reactive平台，同时使用了Play框架和Akka产品。
+
+Lagom将会提供Java版本和Scala版本。通过这个框架，可以更方便地构建微服务的大型系统。
+
+详细信息可以去参考Lagom的相关介绍。
+
+Ø  Scala与其他语言的对比
+
+l  Scala与Java的比较
+
+在Java8中引入了lambda和Stream，使得Java函数式编程成为可能。
+
+但是Java语言并不是一个真正意义上的FP语言，对于数学算子支持程度不太高。并且Java的高并发编程没有Scala方便。并且Scala的强大的类型系统可以减少很多运行时错误，Scala可以让你的代码更简洁。
+
+ 
+
+通过Java9, Java10的计划来看，Java没有计划在FP方面进行追赶，而Scala后续主要在Reactive Stream等异步流式上发力。
+
+l  Scala与Clojure等FP语言比较
+
+FP语言的语言特点都是适用于数据处理。
+
+但是Clojure语言是动态类型的，类型系统比较弱，没有Scala强大。
+
+Clojure和Java协同性没有Scala好
+
+Clojure进行元编程和定义DSL很方便，这个比Scala要强大。
+
+Clojure写出来的代码简洁程度比Scala更好，尤其是数学公式这样的更优美。
+
+l  Scala与Go语言的比较
+
+Scala和Go语言用来比较的场景就是并发编程模型。
+
+Scala是使用Actor模型来实现，Go语言使用的goroutine和channel来实现。主要还是看使用场景，Go语言是命令式语言，是不具备FP语言的特性的，但是Scala是依赖JVM的，可以根据自己实际的项目来选择具体的语言。
+
+ 
+
+Ø  Scala使用的IDE
+
+推荐使用Intellij idea + Scala插件开发。
+
+也可以使用Eclipse来开发。
+
+ 
+
+4      总结
+从Martin Odersky教授和LightBend公司的顾问的描述来看。
+
+Scala在OOP和FP融合这个方面做得非常好，这个语言也很是高分布式和大数据处理，并且这个语言的生态圈和社区也一直在发展。
+
+ 
+
+所以在现在的微服务架构中， 可以考虑使用使用Scala来实现某些服务，主要是分布式框架和大数据处理。
+
+ 
+
+但是这个语言是非常灵活，对于程序员的要求是比较高的，对于一个团队要使用Scala，那么一定要有统一的纪律和要求：
+
+严格的编程规范+有效的Code Review
