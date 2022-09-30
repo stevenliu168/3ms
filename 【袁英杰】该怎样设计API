@@ -1,0 +1,177 @@
+该怎样设计API?
+作者：袁英杰
+
+链接：http://www.jianshu.com/p/8e7708fc71df
+
+ 
+
+在正交设计的文章里，提到了要站在客户的角度，思考API的定义，而不是从技术实现的难易程度角度。随后，有朋友问到能不能就此问题更详细的阐述一下。
+
+正好，今天上午，我看到有关于C++ Mock框架的讨论，这让我想起了当初开发相关框架时API定义的考量。正好和这个话题契合，也是大家都可以获取和理解的例子。
+
+首先需要说明的是：虽然这里的例子是我所做的框架，但只是为了说明本文想讨论的问题，而不是一个广告贴 :)。
+
+1.1        mockcpp vs. google mock
+假设我们现在有一个c++纯虚类（这样的类也被称作接口）：
+
+class Turtle {
+  ...
+  virtual ~Turtle() {}
+  virtual void PenUp() = 0;
+  virtual void PenDown() = 0;
+  virtual void Forward(int distance) = 0;
+  virtual void Turn(int degrees) = 0;
+  virtual void GoTo(int x, int y) = 0;
+  virtual int GetX() const = 0;
+  virtual int GetY() const = 0;
+};
+为了Mock这个接口，使用Google Mock，我们必须首先定义一个这样的中间类：
+
+#include "gmock/gmock.h"  // Brings in Google Mock.
+class MockTurtle : public Turtle {
+ public:
+  ...
+  MOCK_METHOD0(PenUp, void());
+  MOCK_METHOD0(PenDown, void());
+  MOCK_METHOD1(Forward, void(int distance));
+  MOCK_METHOD1(Turn, void(int degrees));
+  MOCK_METHOD2(GoTo, void(int x, int y));
+  MOCK_CONST_METHOD0(GetX, int());
+  MOCK_CONST_METHOD0(GetY, int());
+};
+然后我们才可以定义Mock Object，比如：
+
+MockTurtle turtle;
+中间那个过程非常让人讨厌，作为用户，那是一种不必要的负担。
+
+而mockcpp当初在设计时（需要强调的是：mockcpp比google mock早发布一年），就决议要让用户使用时，只需要描述它真正需要描述的东西。消除掉用户一切不需要知道的复杂度。因而，你不需要额外做任何事情，只需要：
+
+MockObject<Turtle> turtle;
+我们都知道，C++是一个没有提供任何反射机制的编译型语言，因而想推导出一个C++接口定义的内容，只依赖C++语言本身，是没有解决方案实现客户真正所需的简练接口的。
+
+而mockcpp的解决方法是，利用C++编译器的ABI（Application Binary Interface），来推导Mock框架所需的知识。当然，编译器的不同，编译器版本的不同，其ABI定义均可能不同；因而mockcpp不得不针对不同的主流编译器进行不同的实现。
+
+或许你会辩护google mock不想让框架依赖具体的编译器，而只想依赖c++语言本身。一旦开始依赖编译器，就会带来大量额外的开发和维护工作。并且，未被照顾到的非主流编译器，就无法使用这个框架。
+
+但这正是我一直强调的API定义哲学：要站在用户的角度定义接口，哪怕背后对应技术实现方式难度更大。我们应该把这些dirty laundry隐藏在API背后。而不是选择一条自己更容易实现的技术方式，却把dirty laundry都抛给了你的用户。
+
+对于被遗漏的编译器问题，这体现了另外一个权衡和折衷哲学：让90%的人日子变得好过，总比所有人都难过要好。（多数人富起来，少数人贫穷；还是平等，但所有人都平等的贫穷？）
+
+1.2        test-ng-pp vs. google test
+我们再来看看google test给用户提供的界面：
+
+TEST(FactorialTest, HandlesZeroInput) 
+{
+  EXPECT_EQ(1, Factorial(0));
+}
+TEST(FactorialTest, HandlesPositiveInput) 
+{
+  EXPECT_EQ(1, Factorial(1));
+  EXPECT_EQ(2, Factorial(2));
+}
+首先让用户厌烦的是，为何每个用例都需要不断的重复写FactorialTest？
+
+更糟糕的还在后面，当用户真的需要一个Test Fixture时，用户就需要首先定义一个Fixture，比如：
+
+class QueueTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
+    q1_.Enqueue(1);
+    q2_.Enqueue(2);
+    q2_.Enqueue(3);
+  }
+  // virtual void TearDown() {}
+  Queue<int> q0_;
+  Queue<int> q1_;
+  Queue<int> q2_;
+};
+然后在分离的地方，再使用另外一个宏TEST_F，来编写测试用例，比如：
+
+TEST_F(QueueTest, IsEmptyInitially) 
+{
+  EXPECT_EQ(0, q0_.size());
+}
+TEST_F(QueueTest, DequeueWorks) 
+{
+  int* n = q0_.Dequeue();
+  EXPECT_EQ(NULL, n);
+  n = q1_.Dequeue();
+  EXPECT_EQ(0, q1_.size());
+  delete n;
+}
+这就意味着，虽然你都是在编写用例，但在两种场景下，用户需要两个不同的宏：TEST，TEST_F。
+
+这难道真的是用户需要关心的吗？还是google test因为技术实现方式而导致的复杂度？
+
+而理想中，一个用户真正需要的测试框架界面应该是这样的：
+
+FIXTURE(QueueTest)
+{
+  SETUP() 
+  {
+    q1_.Enqueue(1);
+    q2_.Enqueue(2);
+    q2_.Enqueue(3);
+  }
+  // TEARDOWN() {}
+  Queue<int> q0_;
+  Queue<int> q1_;
+  Queue<int> q2_;
+  TEST(IsEmptyInitially)
+  {
+     EXPECT_EQ(0, q0_.size());
+  }
+  TEST(DequeueWorks) 
+  {
+     int* n = q0_.Dequeue();
+     EXPECT_EQ(NULL, n);
+     n = q1_.Dequeue();
+     EXPECT_EQ(0, q1_.size());
+     delete n;
+   }
+};
+这样的用户界面，让用户只指定自己必须指定的东西。一切由于技术实现而导致的偶发复杂度都不应该抛给用户。
+
+更进一步的，既然用户需要让测试用例描述能够准确反映测试场景，那么我们就需要让非英语国家的人也能够做到这一点。比如：
+
+// @test(memcheck=on)
+TEST(测试队列为空的场景：可以使用任意字符¥＃$)
+{
+ EXPECT_EQ(0, q0_.size());
+}
+另外，细心的读者会发现，在这个例子中，有一条注释// @test(memcheck=on)，这是这个用例的annotation，用来指示此用例需要检查是否有内存泄露。这是C++开发和带有GC的语言不同的地方，因而框架很有必要提供这样的特性。
+
+我们知道C++并不提供annotation，事实上，为了提供给用户那些api，test-ng-pp背后做了大量的脏活累活。但这些都是API背后的实现细节。
+
+这不是一篇test-ng-pp特性介绍。谈这些只是为了再次强调API定义哲学：当我们给用户提供API时，不应该由技术实现的难易程度来决定，而是站在用户的角度，消除掉一切不必要的复杂度，让用户可以最快速，最直接的达到他的目的。
+
+至于实现时的细节和复杂度，都应该统统被隐藏在API的背后。
+
+这类与api定义有关的案例，在我所经历的实际项目中，比比皆是。比较典型的有transaction dsl，protocol dsl等等框架的api定义。经历过这些过程的都知道，我们在定义API时，同样是站在用户的角度，消除掉用户一切不需要依赖和了解的复杂度。哪怕这增加了API背后实现的难度。
+
+行文至此，顺便提一句，对于要做C++开发的朋友，我会推荐刘光聪的基于C++ 11实现的c++ xUnit framework magellan，其API定义简洁明确，比google test好用太多。
+
+1.3        如何做到？
+我曾经从我的朋友韩炳涛那里了解到，对于一个复杂问题，解决的方法至少有如下几种：
+
+·         试错法
+
+·         头脑风暴法
+
+·         理想目标设定法
+
+其中被证实最能激发创造力的方法是：理想目标设定法。
+
+事实上，在定义会影响到很多用户的api时（鉴于用户的广泛性，api哪怕只是更友好一点，综合起来都会节省大家大量的时间。另外，由于用户群的庞大，将来api变动也更困难），我采用的策略正是理想目标设定法：
+
+首先站在客户的角度思考，怎样才是客户真正的需要。此时完全不考虑技术实现的方式。
+
+得到一个理想的API后，然后再去寻找一切可能的方式去实现API。
+
+当碰到困难时，有两种解决办法：
+
+1.    看看存不存在更容易实现的另外一种等价形式。注意，这种等价形式和原来对比，依然不会增加任何用户的负担。
+
+2.    Try harder。此时正是走出舒适区，拓展知识面，发挥创造力的最佳时机。
+
+ 
