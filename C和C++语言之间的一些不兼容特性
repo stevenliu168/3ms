@@ -1,0 +1,94 @@
+C和C++语言之间的一些不兼容特性
+日期：2012-09-20 23:45浏览：237评论：0
+C语言是C++的一个子集，C语言程序也同样是一个C++语言程序。但是在C和C++之间有一些不兼容性和区别，
+下面就介绍这些这些区别和不兼容性
+1. 函数形参列表
+   int fun (n)
+    int n;
+    {
+      return -n;
+    }
+    上面的写法是ISO C标准之前的写法(K&R), 在标准C中也是可用的，但是C++不支持。
+    这种古老的写法已经在标准C中声明为deprecated.
+   
+    int fun (int n)
+    {
+       return -n;
+    }
+   
+2. 函数声明   
+   在C语言中，可以直接调用一个为声明的函数
+   在C++中，必须调用一个预先声明的函数，在C语言中也推荐这样，这样能保证编译器检查类型。
+  
+3. 空的函数形参列表
+   在C语言中，如果一个函数声明的时候没有参数，但是调用的时候传入了任意数量的任意类型的参数是合法的
+   在C++是不合法的
+  
+4. 隐式int声明
+    在C语言(K&R 和 ISO C)，如果声明一个类型时缺失类型，默认就是int
+    在C++中是不合法的声明
+   
+5. 全局变量定义
+   在C语言中，全局变量可以重复定义两次(没有extern指示符)   
+   在C++是非法的
+  
+6. void类型指针的隐式转换
+   在C语言中，void类型指针可以隐式转换成任何其他的指针，比如malloc的返回值。
+   但是这种隐式转换却容易带来隐藏的bug：long * pl = malloc(sizeof(short));
+  
+   在C++中必须显式转换
+  
+7. NULL指针的底层表现
+   NULL是一个基于实现的const空指针，在C语言中一般是这么定义的：
+   #define NULL ((void*)0)
+   在C++中，NULL经常被定义为0(或者0L)，但是从来不会定义为void*
+   const int NULL = 0; //some C++ implementations use this convention
+   #define NULL 0; //others might use this convention
+  
+   例如在stdio.h中
+   /* Define NULL pointer value */
+    #ifndef NULL
+    #ifdef __cplusplus
+    #define NULL    0
+    #else
+    #define NULL    ((void *)0)
+    #endif
+    #endif
+   
+    为什么要这么区别了，因为C++的指针时强类型的，但是C中却不是
+    因为C语言指针void指针的隐式转换
+    所以在C++可以直接使用0或者0L，而不使用NULL
+   
+8. 全局const变量的默认链接类型
+   在C语言中，全局const变量的默认链接方式是extern的，并且未初始化的const变量隐式用0来初始化
+   在C++语言中，全局const变量如果没有显式声明为extern，那么就是静态链接，并且const变量必须显示初始化
+
+9. Null-Terminated字符数组
+   在C语言中，字符数组可以用一个字符串常量来初始化，并且可以不包括 null-terminating character
+   const char message[5] =  "hello";
+   在C++中，字符数组必须大到可以容纳null-terminating character。
+  
+10. int和枚举之间的赋值
+   在C语言中，将int赋值给枚举是可以的
+   在C++中，需要通过static_cast或者C样式的强制转换才可以。
+  
+11. struct的定义
+   在C语言中，struct可以在函数的形参和返回值中：
+   struct Stat { int code; char msg[10];}  logon (struct User { char username[8];  char pwd[8];} u );
+   但是C++中是不允许的
+  
+   在C语言中定义或者声明struct变量时，类型前面必须添加struct
+   在C++中没有这个限制
+  
+上面这些这些不兼容性都是可以通过编译器的检查来识别出来的，但是还有一些潜在的差异是无法识别的。
+1. 枚举的字节数大小
+   在C语言中，一个枚举的size是等于sizeof(int)
+   但是在C++中，枚举的潜在类型不一定是int型，有可能更小，或者更大。
+  
+2. 字节的字符数大小
+   在C语言中，sizeof('c')是等于sizeof(int)的
+   在C++中， sizeof('c')是等于sizeof(char)的
+ 
+3. main函数的默认返回值
+   在C语言中，如果main函数的最后没有return语句，那么返回一个未定义的值。
+   在C++中隐式返回0
