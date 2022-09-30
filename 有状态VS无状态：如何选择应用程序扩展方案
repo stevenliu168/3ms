@@ -1,0 +1,191 @@
+http://3ms.huawei.com/km/blogs/details/5384189
+
+有状态VS无状态：如何选择应用程序扩展方案
+日期：2018-03-01 09:26浏览：2557评论：9
+前言
+最近在做一些架构优化的东东，最后很多问题都回归到如何让系统可以快速水平扩展，支持弹性伸缩，简化负载均衡的状态，就总想把系统做成完全无状态的，但是对于性能等又担心有问题，所以把以前的一些资料拿出来重新研究了一下。
+
+我们在实现分布式系统的时候，为了实现很好的水平扩展，都会想把业务系统实现成无状态的，程序数据分离的模式, 状态数据存储在数据库中。
+image.png
+
+在无状态的模式下，只需要在负载均衡器后面不停地增加节点来处理请求就行了。
+无状态的好处很明显，但是缺点就是服务和数据访问之间有延迟，性能有损耗，并且由于这种延迟带来的数据一致性等等分布式数据固有的复杂性。
+并且随着业务数据的不停增加，数据库的处理能力就会有瓶颈，那么就需要对于数据库进行分片，或者使用分布式数据库（NoSQL之类的）这样的数据。
+
+那么是不是所有的系统都推荐使用无状态模式来实现，我们是否可以使用有状态的方式来实现某些分布式扩展问题，以此来解决无状态带来的哪些问题。
+
+这里有一个演讲，"Building Scalable Stateful Services" by Caitie McCaffrey（https://www.youtube.com/watch?v=H0i_bXKwujQ）， 主题就是如何构建可扩展的有状态服务，我们下面详细来看看主要思想是什么？【听不太懂囧，但是结合材料能知道讲的内容是什么】
+中间会涉及很多分布式的概念，在文章后面进行了简单的描述，如果需要了解更多，可以到网上查阅更多的资料。
+
+无状态服务(Stateless Service)
+下面展示了一个无状态系统的水平扩展过程
+
+初始部署
+image.png
+水平扩展
+image.png
+这种水平扩展的方式看起来很完美，也比较容易实现，但是却有下面几个问题：
+
+就像前面说的，需要使用数据库分片或者分布式数据库技术。
+如果是真正的无状态服务，那么有状态的Session信息就会存储在DB上面，那么如果同一个Session的数据分发给不同的服务处理的话，就会导致这些无状态的服务节点都需要反复加载DB中的数据，导致数据访问开销大，并且有浪费。
+有状态服务(Stateful Service)
+有状态服务的好处
+数据本地化Data Locality
+有状态服务启动的时候，需要将数据本节点的数据加载起来（启动加载或者请求第一次到达时逐步加载），这样后续相关的请求都会必须发给这个节点来处理，这样的好处就是避免了状态数据的反复存储和读取，避免内部网络流量消耗，并且及时数据库出现问题，由于数据的缓存原因，也可以正常工作，处理业务请求。
+
+追求高可用性和更好的一致性
+在无状态服务中，为了解决数据访问延迟，使用了最终一致性相关的方案，一般会选择CP或者AP方案。
+如果要实现分布式，那么P是一定需要的，所以对于有状态的服务，我们追求AP，但是一致性不能完全舍弃，所以就会采用典型的Sticky Session方案（参见后面的描述），保证一个会话或者一个用户的数据都在某个固定的节点上面进行处理。
+
+在无状态模式下面，为了加速数据访问，可能会使用缓存技术（比如Redis），这样带来了一个问题，就是缓存的数据一致性问题如何解决。但是使用Sticky Session这类方案就可以避免这种情况发生，因为对于某个节点内部来说，强一致性还是最终一致性可以选择，节点之间的数据是相互隔离（除非发生了扩缩容，节点故障等场景）。
+
+有状态服务的实现
+Sticky Session的实现
+基于HTTP/TCP的长连接：方法简单，但是连接一旦断开以后，Session就结束了。并且长连接容易出现高负载的节点（热节点），需要实现back pressure来让一部分连接断开，转向其他的节点。
+通过集群内部路由器来实现， 业务请求可以连接任意节点，这个节点然后将这个请求路由转发到包含该用户数据的节点上。
+这样对于集群的要求比较高了，就不想使用无状态模式下的负载均衡器那样，集群节点相对比较简单。
+image.png
+
+集群成员管理
+Membership可以有几种类型：静态、Gossip以及一致性（Consensus）系统。
+
+静态系统：很简单的实现方案，通过配置文件来管理集群成员地址，每个节点都持有这个文件。缺点就很明显了，不易扩展，需要修改配置，重启整个集群。现在很少使用这种模式的，都是使用动态集群方案。
+Gossip协议：Gossip算法又被称为反熵（Anti-Entropy），熵是物理学上的一个概念，代表杂乱无章，而反熵就是在杂乱无章中寻求一致，这充分说明了Gossip的特点：在一个有界网络中，每个节点都随机地与其他节点通信，经过一番杂乱无章的通信，最终所有节点的状态都会达成一致。每个节点可能知道所有其他节点，也可能仅知道几个邻居节点，只要这些节可以通过网络连通，最终他们的状态都是一致的，当然这也是疫情传播的特点。
+
+要注意到的一点是，即使有的节点因宕机而重启，有新节点加入，但经过一段时间后，这些节点的状态也会与其他节点达成一致，也就是说，Gossip天然具有分布式容错的优点。
+
+一致性协议：比如开源的Zookeeper，ETCD等都是使用一致性协议（Paxos，Raft），这种一致性组件可以保证集群成员信息的准确性和及时更新。
+工作分发
+常见的任务分发机制如下：
+
+随机分配： 写请求随机分发给任意节点，读请求需要遍历所有的节点。
+一致性Hash：通过某些字段进行Hash，比如典型的SessionID，用户ID等。一般使用典型的一致性Hash环，或者使用更简洁的Google jump Consistent hash：
+image.png
+jump Consistent hash的论文：http://arxiv.org/ftp/arxiv/papers/1406/1406.2294.pdf
+
+   int32_t JumpConsistentHash(uint64_t key, int32_t num_buckets) {
+       int64_t b = -1, j = 0;
+       while (j < num_buckets) {
+           b = j;
+           key = key * 2862933555777941757ULL + 1;
+           j = (b + 1) * (double(1LL << 31) / double((key >> 33) + 1));
+       }
+       return b;
+  }
+使用一致性Hash，就是一种确定性的负载均衡方式，对于一个指定会话或者用户是一定会落到某个节点上面运行的，负载不会转移的，那么就需要小心节点的过度负载。
+
+DHT（分布式hash技术）：用一个分布式的Hashtable来维护、查询请求分配的节点，用这种方式，当一个节点宕机或者过载的时候，可以更改Hashtable把负载重新分配到其他节点。典型的DHT算法包括：Chord，CAN，Kademlia， Pastry等。
+
+有状态服务实现主要挑战和注意事项
+内存管理
+对于无状态服务来说，内存的数据都是可以看做短生命周期数据，很多数据随着请求的开始和结束而结束，回归到DB存储中去。但是对于有状态的服务来说，某个会话的数据可能长期存储在内存，要注意这方面的问题。
+
+数据的装载
+对于无状态服务来说，数据一般是在业务请求的时候进行数据读取，业务结束以后存在在DB中，就可以释放了，可能由于缓存机制存储在内存中。
+
+但是对于有状态服务来说，数据加载一般都几个时机：
+
+第一次连接：用户第一次连接的时候将所有数据都加载起来。
+节点故障恢复：可以提前加载一些数据
+业务升级：对于节点升级，所有服务重启以后，就需要重新加载所有数据。这个地方很多产品多可能会出现数据量大，加载慢的情况，尤其是对于确定性hash算法的场景。有一些方案可以解决，比如facebook通过共享内存进行中转：
+image.png
+节点的扩缩容
+分布式系统的一个特点就是支持快速扩缩容，这个对于无状态服务是很轻松做到的。
+
+对于有状态的服务来说，节点扩缩容影响影响两个方面：
+集群内部工作分发的机制，这个取决于使用了什么集群成员管理算法来实现的，比如Gossip，DHT，那么只需要进行Hash算法重新
+数据存储的迁移
+
+节点的故障处理
+有状态服务对于节点故障的处理还是比较困难的，因为数据存储都是在节点内部， 如果某个节点故障，如何将数据交由其他的节点加载起来一直是有状态服务的主要挑战。
+
+有状态服务一般采用两种方式来实现：卸载持久层（磁阵等）和高可用的云存储。持久化层的迁移是比较困难的，高可用的云存储一般都是牺牲了一致性来提高可用性，带来了最终一致性的复杂性。
+希望Flock，redis, Cassandra等技术真的更好地解决这类问题。
+
+image.png
+
+业界典型案例
+Facebook Scuba
+image.png
+
+Uber Ringpop
+image.png
+
+Microsoft Orleans
+image.png
+
+总结
+image.png
+
+无状态服务和有状态服务核心的差异就是任意业务请求是否可以随时由任意节点来处理。
+
+绝对的无状态服务完全没有状态，状态数据存储在DB中，所有节点随时获取最新的DB，集群节点之间完全平等的。
+有状态服务就是每个节点使用Sticky Session技术来处理自己专有的业务和数据，
+无状态的优点与缺点
+
+优点：支持快速水平扩展，快速故障恢复与新实例上线
+缺点：数据访问的性能有损耗，数据的最终一致性问题的复杂性
+有状态的优点和缺点
+
+优点：数据读取性能较高，没有数据一致性问题
+缺点：对于业务节点的扩缩容比较容易，但是对于持久化数据迁移比较困难。
+在大部分业务场景下面，无状态的模式与这种水平扩展能力可以更轻量化地实现系统的扩展能力。
+其实我们在实现无状态模式时，也不是追求绝对的无状态化，也会使用Sticky Session来保证用户的业务连续性，比如通过一致性Hash，Hash槽等机制让特定的会话段/用户段让特定的节点来操作，一旦节点故障，然后通过分布式存储+数据副本算法来重新分配会话段/用户段，保证业务的连续性。
+
+所以在进行这类系统设计的时候，不论绝对地无状态化或者状态化，还是需要结合业务特点，关键指标（吞吐量，）来进行考虑。
+如果你的系统就是管理基本数据的，比如管理博客，订单等，那么无状态化是很好的选择。
+如果你的系统是对于数据要实时完成某些业务，比如会话聊天，视频监控，电信系统就比较适合有状态的。然后通过有效地隔离持久层或者高性能云存储来完成数据的迁移。
+
+一些分布式下术语解释
+水平扩展和垂直扩展
+在垂直扩展模型中，想要增加系统负荷就意味着要在系统现有的部件上下工夫，即通过提高系统部件的能力来实现。比如增加机器的CPU，内存和硬盘等。
+在水平扩展模型中，我们不是通过增加单个系统成员的负荷而是简单的通过增加更多的系统成员来实现。也就是不停地增加新的机器来实现。
+也叫横向扩展和纵向扩展。
+
+CAP理论
+CAP由Eric Brewer在2000年PODC会议上提出，是Eric Brewer在Inktomi期间研发搜索引擎、分布式web缓存时得出的关于数据一致性(consistency)、服务可用性(availability)、分区容错性(partition-tolerance)的猜想：
+该猜想在提出两年后被证明成立，成为我们熟知的CAP定理：
+
+数据一致性(consistency)：如果系统对一个写操作返回成功，那么之后的读请求都必须读到这个新数据；如果返回失败，那么所有读操作都不能读到这个数据，对调用者而言数据具有强一致性(strong consistency) (又叫原子性 atomic、线性一致性 linearizable consistency)[5]
+服务可用性(availability)：所有读写请求在一定时间内得到响应，可终止、不会一直等待
+分区容错性(partition-tolerance)：在网络分区的情况下，被分隔的节点仍能正常对外服务
+在某时刻如果满足AP，分隔的节点同时对外服务但不能相互通信，将导致状态不一致，即不能满足C；如果满足CP，网络分区的情况下为达成C，请求只能一直等待，即不满足A；如果要满足CA，在一定时间内要达到节点状态一致，要求不能出现网络分区，则不能满足P。
+对于分布式系统工程实践，CAP理论更合适的描述是：在满足分区容错的前提下，没有算法能同时满足数据一致性和服务可用性。
+
+image.png
+
+image.png
+
+强一致性：
+线性一致性（Linearizable）：Under linearizable consistency, all operations appear to have executed atomically in an order that is consistent with the global real-time ordering of operations.
+序列一致性(sequential consistency) ：Under sequential consistency, all operations appear to have executed atomically in some order that is consistent with the order seen at individual nodes and that is equal at all nodes.
+The key difference is that linearizable consistency requires that the order in which operations take effect is equal to the actual real-time ordering of operations. Sequential consistency allows for operations to be reordered as long as the order observed on each node remains consistent. The only way someone can distinguish between the two is if they can observe all the inputs and timings going into the system; from the perspective of a client interacting with a node, the two are equivalent.
+弱一致性：
+Client-centric consistency models
+Causal consistency: strongest model available
+最终一致性：
+因果一致性。如果进程A通知进程B它已更新了一个数据项，那么进程B的后续访问将返回更新后的值，且一次写入将保证取代前一次写入。与进程A无因果关系的进程C的访问遵守一般的最终一致性规则。
+“读己之所写（read-your-writes）”一致性。当进程A自己更新一个数据项之后，它总是访问到更新过的值，绝不会看到旧值。这是因果一致性模型的一个特例。
+会话（Session）一致性。这是上一个模型的实用版本，它把访问存储系统的进程放到会话的上下文中。只要会话还存在，系统就保证“读己之所写”一致性。如果由于某些失败情形令会话终止，就要建立新的会话，而且系统的保证不会延续到新的会话。
+单调（Monotonic）读一致性。如果进程已经看到过数据对象的某个值，那么任何后续访问都不会返回在那个值之前的值。
+单调写一致性。系统保证来自同一个进程的写操作顺序执行。要是系统不能保证这种程度的一致性，就非常难以编程了。
+Sticky and NON-Sticky Session
+image.png
+
+具体Sticky Session的使用可以参见AWS的Elastic Load Balancing：https://docs.aws.amazon.com/zh_cn/elasticloadbalancing/latest/classic/elb-sticky-sessions.html
+默认情况下，传统负载均衡器会将每项请求单独路由到负载最小的已注册实例。但是，您可以使用粘性会话 功能 (也称为会话关联)，使负载均衡器能够将用户会话绑定到特定的实例。这可确保在会话期间将来自用户的所有请求发送到相同的实例中。
+
+管理粘性会话的关键是确定负载均衡器一致地将用户请求路由到相同实例的时间长短。如果您的应用程序具有自己的会话 Cookie，则可以配置 Elastic Load Balancing，以便会话 Cookie 遵循应用程序会话 Cookie 指定的持续时间。如果您的应用程序没有自己的会话 Cookie，则可以将 Elastic Load Balancing 设置为通过指定自己的粘性持续时间来创建会话 Cookie。
+
+Data Locality
+Data locality means moving computation rather than moving data to save the bandwidth.This minimizes network congestion and increases the overall throughput of the system.
+
+其实Data Locality从字面上就比较好理解了，就是让数据处理逻辑和需要处理的数据尽可能在一起，这样可以降低数据传输的复杂性。
+
+Consistent Hashing
+这个网上介绍有很多了：https://www.cnblogs.com/lpfuture/p/5796398.html
+
+参考资料
+Building Scalable Stateful Services： https://www.youtube.com/watch?v=H0i_bXKwujQ
+可扩展的有状态服务： https://zhuanlan.zhihu.com/p/25874641
+https://github.com/CaitieM20/Talks/tree/master/ScalingStatefulServices
