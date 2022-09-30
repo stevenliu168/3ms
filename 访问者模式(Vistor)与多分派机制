@@ -1,0 +1,142 @@
+访问者模式(Vistor)与多分派机制
+日期：2017-02-20 08:54浏览：332评论：0
+前言
+访问者模式可以说是设计模式中最难的设计模式之一了， 从类图结构上可能没有察觉，如果了解编程语言的单分派和多分派机制的，那么就会了解访问者模式其实是在模拟实现双分派，完成功能。
+
+本文将讲解访问者模式的概念，原理和使用场景，以及背后是如何模拟实现动态双分派的。
+
+访问者模式详解
+undefined
+
+简单描述一下类结构图中的元素含义：
+
+Vistor接口是用来定义各种元素的操作接口
+Element接口是用来定义元素的接口，主要是定义一个accept接口，表示每个元素可以被visitor访问
+ObjectStructure主要是指对象结构，也就是很多Element的集合
+访问者模式其实一种将算法和数据分离的模式，如果你需要对某个对象结构中的各个元素进行操作，那么可以采用访问者模式来不改变元素类而微元素类增加新的操作。
+
+访问者模式最典型的场景：文件系统的遍历打印。
+
+这个时候Element应该就会派生出两种对象，File和Directory, 但是Directory多了一种方法，就是getChildren，用来获取子节点
+
+public interface Element
+{    
+        void accept(Visitor v);
+}
+public class Directory implements Element
+{            
+        @Override            
+        public void accept(Visitor v)            
+        {        
+             v.visit(this)    
+        }    
+  
+       public List<Element> getChildren()    
+       {       
+            return ...    
+       }
+}
+Visitor根据情况也可以派生出多种，比如树状打印，XML打印等
+
+那么Visitor就定义了两种方法：
+
+public interface Visitor
+{    
+    void visit(File file);    
+    void visit(Directory dir);
+}
+// 注意：这里不一定方法都要叫做visit，可以不一样的名字，简单的时候可以重载形式，大部分情况还是
+//建议每种元素使用不同的名字
+
+public class TreeVisitor implements Visitor
+
+public class XMLVisitor implements Visitor
+最后使用的时候只需要
+
+public static void main(String[] args)
+{    
+    Directory elment = new Directory(...);    
+    elment.accept(new TreeVisitor);
+}
+可以看出后续如果需要增加新的打印格式，那么只需要按照OCP原则扩展一个新的Visitor子类就行，其余的地方的不用修改。
+
+总结一下访问者的优点和缺点：
+优点：
+
+满足OCP原则，很容易扩展新的行为
+单一职责原则，将数据结构和访问者的行为进行了分工
+缺点：
+
+如果要新增加了元素类型，那么会特别不方便，需要修改整个visitor继承体系
+访问者需要了解数据元素的内部细节，这样数据结构需要暴露很多数据出来， 稍微有点违背最小知识原则，但是程序设计就是一个tradeoff的过程，访问者模式在有些时候可以很好解决问题
+使用场合： 数据结构相对稳定但是算法易变化的系统
+
+如果一个对象结构中包含许多不同类型的对象，有不同的接口，并且想对这些对象集合实施操作
+需要对一个对象结构中对象进行很多不同的并且不相关的操作，并且不想让这些操作与对象类关联在一起。
+定义对象结构的类很少改动，但是需要经常在结构上定义新的操作
+注：一般来说，访问者访问的结构对象就是基于组合模式的结构
+
+其实Visitor模式可以在不改变类就可以增加基于这个类的操作，是使用了一种双分派(double dispatch)的技术，有一些语言直接支持这个语言（比如CLOS， Clojure与Groovy都支持）。但是像C++，Java这样的语言只支持单分派。
+
+下面就讲一下单分派和双分派的原理
+
+单分派和多分派详解
+单分派
+在单分派的语言中，能够决定哪一个方法被调用取决于两个方面：方法名和调用者的类型。
+
+ClassA a = new ClassA();
+a.fun()；
+那么调用fun的版本就是依靠a的类型和fun的名称决定
+
+这个时候还分为静态分派和动态分派
+
+class Test
+{    
+    public void fun(int a){};    
+
+
+    public void fun(String b){};
+}
+
+Test o = new Test;
+o.fun(1);
+上面这种函数重载的就是静态多分派，编译的时候就觉得调用哪个方法，如果没有重载，那么就直接选定了方法调用。
+
+public class Base
+{    
+    public void fun(){...};
+}
+
+
+public class Sub extends Base
+{    
+    @Override    
+    public void fun(){...};
+}
+
+Base b = new Sub();
+b.fun();
+如果是通过上面多态机制，通过基类指针调用子类重写的方法，那么这个就是运行时决定调用的方法，属于动态单分派。
+
+所以C++/Java只支持静态多分派和动态单分派
+
+双分派（多分派）
+双分派是说一个方法调用由请求的名称和两个调用者的类型决定。（两个调用者在Visitor模式里面就是Element和Visitor）。
+从语言层面来说，C++/Java实现不了动态双分派，如果要实现调用的方法既由visitor类型决定，并且还由它访问的Element类型来决定，那么可以借助两次单分派来达到这个效果。
+
+我们看看这次的调用
+elment.accept(new TreeVisitor);
+
+当调用accept的时候，根据elment的类型决定调用了哪个具体的Element的accept方法【第一次动态单分派】
+当确定好了accept以后， 比如是Directory，后面将会调用它的accept方法：
+
+public void accept(Visitor v)
+{    
+    v.visit(this);
+}
+这个时候this就是Directory类型，那么就会调用TreeVisitor的visit方法，然后根据visitor的实际类型和参数来确定调用哪个visit方法。这样就完成了【第二次的动态单分派】
+
+所以访问者模式就是通过这种思路来实现了“动态双分派”机制。
+
+总结
+通过上面的描述我们掌握了访问者模式的优缺点，使用场景。并且详细的解释了访问者模式是如何实现动态双分派的。希望大家在学习设计模式或者其他知识的时候多看看背后的原理和机制，这样对你掌握这个知识是很有帮助的。
