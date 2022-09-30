@@ -1,0 +1,191 @@
+走进Java--底层篇--Java体系介绍
+ 
+
+1      Java名字的来源
+Java是印度尼西亚爪哇岛的英文名称，因盛产咖啡而闻名。Java语言中的许多库类名称，多与咖啡有关：如JavaBeans（咖啡豆）、NetBeans（网络豆）以及ObjectBeans(对象豆）等等。SUN和JAVA的标识也正是一杯正冒着热气的咖啡。
+
+ 
+
+2      语言的起源
+Java平台和语言最开始只是SUN公司在1990年12月开始研究的一个内部项目。SUN公司的一个叫做帕特里克·诺顿的工程师被自己开发的C和C语言编译器搞得焦头烂额，因为其中的API极其难用。帕特里克决定改用NeXT，同时他也获得了研究公司的一个叫做“Stealth计划”的项目的机会。
+
+　　“Stealth计划”后来改名为“Green计划”，JGosling（詹姆斯·高斯林）和麦克·舍林丹也加入了帕特里克的工作小组。他们和其他几个工程师一起在加利福尼亚州门罗帕克市沙丘路的一个小工作室里面研究开发新技术，瞄准下一代智能家电（如微波炉）的程序设计，SUN公司预料未来科技将在家用电器领域大显身手。团队最初考虑使用C语言，但是很多成员包括SUN的首席科学家比尔·乔伊，发现C和可用的API在某些方面存在很大问题。
+
+　　工作小组使用的是内嵌类型平台，可以用的资源极其有限。很多成员发现C太复杂以至很多开发者经常错误使用。他们发现C缺少垃圾回收系统，还有可移植的安全性、分布程序设计、和多线程功能。最后，他们想要一种易于移植到各种设备上的平台。
+　　根据可用的资金，比尔·乔伊决定开发一种集C语言和Mesa语言搭成的新语言，在一份报告上，乔伊把它叫做“未来”，他提议SUN公司的工程师应该在C的基础上，开发一种面向对象的环境。最初，高斯林试图修改和扩展C的功能，他自己称这种新语言为C--，但是后来他放弃了。他将要创造出一种全新的语言，被他命名为“Oak”（橡树），以他的办公室外的树而命名。
+　　就像很多开发新技术的秘密的工程一样，工作小组没日没夜地工作到了1992年的夏天，他们能够演示新平台的一部分了，包括Green操作系统，Oak的程序设计语言，类库，和其硬件。最初的尝试是面向一种类PDA设备，被命名为Star7，这种设备有鲜艳的图形界面和被称为“Duke”的智能代理来帮助用户。1992年12月3日，这台设备进行了展示。
+　　同年11月，Green计划被转化成了“FirstPerson有限公司”，一个SUN公司的全资子公司，团队也被重新安排到了帕洛阿尔托。FirstPerson团队对建造一种高度互动的设备感兴趣，当时代华纳发布了一个关于电视机顶盒的征求提议书时（Requestforproposal），FirstPerson改变了他们的目标，作为对征求意见书的响应，提出了一个机顶盒平台的提议。但是有线电视业界觉得FirstPerson的平台给予用户过多地控制权，因此FirstPerson的投标败给了SGI。与3DO公司的另外一笔关于机顶盒的交易也没有成功，由于他们的平台不能在电视工业产生任何效益，公司再并回SUN公司。
+　　1994年6、7月间，在经历了一场历时三天的头脑风暴的讨论之后，约翰·盖吉、詹姆斯·高斯林、比尔·乔伊、帕特里克·诺顿、韦恩·罗斯因和埃里克·斯库米，团队决定再一次改变了努力的目标，这次他们决定将该技术应用于万维网。他们认为随着Mosaic浏览器的到来，因特网正在向同样的高度互动的远景演变，而这一远景正是他们在有线电视网中看到的。作为原型，帕特里克·诺顿写了一个小型万维网浏览器，WebRunner，后来改名为HotJava。同年，Oak改名为Java。商标搜索显示，Oak已被一家显卡制造商注册，因此团队找到了一个新名字。这个名字是在很多成员常去的本地咖啡馆中杜撰出来的。名字是不是首字母缩写还不清楚，很大程度上来说不是。虽然有人声称是开发人员名字的组合：JamesGosling（詹姆斯·高斯林）ArthurVanHoff（阿瑟·凡·霍夫）AndyBechtolsheim（安迪·贝克托克姆），或“JustAnotherVagueAcronym”（只是另外一个含糊的缩写）。还有一种比较可信的说法是这个名字是出于对咖啡的喜爱，所以以Java咖啡来命名。类文件的前四个字节如果用十六进制阅读的话，分别为“CAFEBABE”，就会拼出两个单词“CAFEBABE”（咖啡宝贝）。
+
+　　1994年10月，HotJava和Java平台为公司高层进行演示。1994年，Java1.0a版本已经可以提供下载，但是Java和HotJava浏览器的第一次公开发布却是在1995年5月23日SunWorld大会上进行的。SUN公司的科学指导约翰·盖吉宣告Java技术。这个发布是与网景公司的执行副总裁马克·安德森的惊人发布一起进行的，宣布网景将在其浏览器中包含对Java的支持。1996年1月，Sun公司成立了Java业务集团，专门开发Java技术。
+
+ 
+
+3      Java的发展历史
+
+
+ 
+
+l  1995年5月23日，Java语言诞生
+
+l  1996年1月，第一个JDK-JDK1.0诞生
+
+l  1996年4月，10个最主要的操作系统供应商申明将在其产品中嵌入JAVA技术
+
+l  1996年9月，约8.3万个网页应用了JAVA技术来制作
+
+l  1997年2月18日，JDK1.1发布
+
+l  1997年4月2日，JavaOne会议召开，参与者逾一万人，创当时全球同类会议规模之纪录
+
+l  1997年9月，JavaDeveloperConnection社区成员超过十万
+
+l  1998年2月，JDK1.1被下载超过2,000,000次
+
+l  1998年12月8日，JAVA2企业平台J2EE发布
+
+l  1999年6月，SUN公司发布Java的三个版本：标准版（JavaSE,以前是J2SE）、企业版（JavaEE以前是J2EE）和微型版（JavaME，以前是J2ME）
+
+l  2000年5月8日，JDK1.3发布
+
+l  2000年5月29日，JDK1.4发布
+
+l  2001年6月5日，NOKIA宣布，到2003年将出售1亿部支持Java的手机
+
+l  2001年9月24日，J2EE1.3发布
+
+l  2002年2月26日，J2SE1.4发布，自此Java的计算能力有了大幅提升
+
+l  2004年9月30日18:00PM，J2SE1.5发布，成为Java语言发展史上的又一里程碑。为了表示该版本的重要性，J2SE1.5更名为JavaSE5.0
+
+l  2005年6月，JavaOne大会召开，SUN公司公开JavaSE6。此时，Java的各种版本已经更名，以取消其中的数字“2”：J2EE更名为JavaEE，J2SE更名为JavaSE，J2ME更名为JavaME
+
+l  2006年12月，SUN公司发布JRE6.0
+
+l  2009年4月7日GoogleAppEngine开始支持Java
+
+l  2009年04月20日，甲骨文74亿美元收购Sun。取得java的版权。
+
+l  2010年11月，由于甲骨文对于Java社区的不友善，因此Apache扬言将退出JCP。
+
+l  2011年7月28日，甲骨文发布java7.0的正式版。
+
+l  2014年3月19日，甲骨文公司发布java8.0的正式版。
+
+ 
+
+4      Java的技术体系
+从广义上讲，Clojure, JRuby, Croovy等运行在Java虚拟机上的语言及其相关的程序都属于Java体系中的一员。如果从传统意义上讲，Sun公司官方所定义的Java体系包括下面几部分：
+
+Ø  Java程序设计语言
+
+Ø  各种硬件平台上的Java虚拟机
+
+Ø  Class文件格式
+
+Ø  Java  API库
+
+Ø  来自商业机构和开源社区的第三方Java类库
+
+ 
+
+下图描述了Java体系所包含的内容，以及JDK和JRE所涵盖的内容。
+
+ 
+
+
+
+ 
+
+5      Java的体系平台
+如果按照技术所服务的领域来划分，Java技术体系分为四个平台：
+
+Ø  Java Card: 支持一些Java小程序（比如Appltes）运行在小内存设备（比如智能卡）。
+
+Ø  Java ME(Micro Edition): 支持Java程序运行在移动终端上的平台。
+
+Ø  Java SE(Standard Edition): 支持面向桌面级引用的Java平台。
+
+Ø  Java EE(Enterprise Edition): 支持面向多层架构的企业应用的Java平台。
+
+ 
+
+6      Java虚拟机的发展历史
+6.1      Sun Classic/Exact VM
+1996年1月23日，Sun公司发布JDK1.0， Java语言首次拥有了商用的正式运行环境，这个JDK中所带的虚拟机就是Classic VM。
+
+6.2      Sun HotSpot VM
+提起HotSpot VM，相信所有Java程序员都知道，它是Sun JDK和OpenJDK中所带的虚拟机，也是目前使用范围最广的Java虚拟机。但不一定所有人都知道的是，这个目前看起来“血统纯正”的虚拟机在最初并非由Sun公司开发，而是由一家名为“Longview Technologies”的小公司设计的；甚至这个虚拟机最初并非是为Java语言而开发的，它来源于Strongtalk VM，而这款虚拟机中相当多的技术又是来源于一款支持Self语言实现“达到C语言50%以上的执行效率”的目标而设计的虚拟机，Sun公司注意到了这款虚拟机在JIT编译上有许多优秀的理念和实际效果，在1997年收购了Longview Technologies公司，从而获得了HotSpot VM。
+
+6.3      Sun Mobile-Embedded VM / Meta-Circular VM
+Sun公司面对移动和嵌入式市场，也发布过虚拟机产品，另外还有一类虚拟机，在设计之初就没抱有商用的目的，仅仅是用于研究、验证某种技术和观点，又或者是作为一些规范的标准实现。这些虚拟机对于大部分不从事相关领域开发的Java程序员来说可能比较陌生。Sun公司发布的其他Java虚拟机有：
+
+（1）KVM
+
+KVM中的K是“Kilobyte”的意思，它强调简单、轻量、高度可移植，但是运行速度比较慢。在Android、iOS等智能手机操作系统出现前曾经在手机平台上得到非常广泛的应用。
+
+（2）CDC/CLDC HotSpot Implementation
+
+CDC/CLDC全称是Connected（Limited）Device Configuration，在JSR-139/JSR-218规范中进行定义，它希望在手机、电子书、PDA等设备上建立统一的Java编程接口，而CDC-HI VM和CLDC-HI VM则是它们的一组参考实现。CDC/CLDC是整个Java ME的重要支柱，但从目前Android和iOS二分天下的移动数字设备市场看来，在这个领域中，Sun的虚拟机所面临的局面远不如服务器和桌面领域乐观。
+
+（3）Squawk VM
+
+Squawk VM由Sun公司开发，运行于Sun SPOT（Sun Small Programmable Object Technology，一种手持的WiFi设备），也曾经运用于Java Card。这是一个Java代码比重很高的嵌入式虚拟机实现，其中诸如类加载器、字节码验证器、垃圾收集器、解释器、编译器和线程调度都是Java语言本身完成的，仅仅靠C语言来编写设备I/O和必要的本地代码。
+
+（4）JavaInJava
+
+JavaInJava是Sun公司于1997年～1998年间研发的一个实验室性质的虚拟机，从名字就可以看出，它试图以Java语言来实现Java语言本身的运行环境，既所谓的“元循环”（Meta-Circular，是指使用语言自身来实现其运行环境）。它必须运行在另外一个宿主虚拟机之上，内部没有JIT编译器，代码只能以解释模式执行。在20世纪末主流Java虚拟机都未能很好解决性能问题的时代，开发这种项目，其执行速度可想而知。
+
+（5）Maxine VM
+
+Maxine VM和上面的JavaInJava非常相似，它也是一个几乎全部以Java代码实现（只有用于启动JVM的加载器使用C语言编写）的元循环Java虚拟机。这个项目于2005年开始，到现在仍然在发展之中，比起JavaInJava，Maxine VM就显得“靠谱”很多，它有先进的JIT编译器和垃圾收集器（但没有解释器），可在宿主模式或独立模式下执行，其执行效率已经接近了HotSpot Client VM的水平。
+
+6.4      BEA JRockit / IBM J9 VM
+JRockit VM曾经号称“世界上速度最快的Java虚拟机”（广告词，貌似J9 VM也这样说过），它是BEA公司在2002年从Appeal Virtual Machines公司收购的虚拟机。BEA公司将其发展为一款专门为服务器硬件和服务器端应用场景高度优化的虚拟机，由于专注于服务器端应用，它可以不太关注程序启动速度，因此JRockit内部不包含解析器实现，全部代码都靠即时编译器编译后执行。除此之外，JRockit的垃圾收集器和MissionControl服务套件等部分的实现，在众多Java虚拟机中也一直处于领先水平。
+
+IBM J9 VM并不是IBM公司唯一的Java虚拟机，不过是目前其主力发展的Java虚拟机。IBM J9 VM原本是内部开发代号，正式名称是“IBM Technology for Java Virtual Machine”，简称IT4J，只是这个名字太拗口了一点，普及程度不如J9。J9 VM最初是由IBM Ottawa实验室一个名为SmallTalk的虚拟机扩展而来的，当时这个虚拟机有一个bug是由8k值定义错误引起的，工程师花了很长时间终于发现并解决了这个错误，此后这个版本的虚拟机就称为K8了，后来扩展出支持Java的虚拟机就被称为J9了。与BEA JRockit专注于服务器端应用不同，IBM J9的市场定位与Sun HotSpot比较接近，它是一款设计上从服务器端到桌面应用再到嵌入式都全面考虑的多用途虚拟机，J9的开发目的是作为IBM公司各种Java产品的执行平台，它的主要市场是和IBM产品（如IBM WebSphere等）搭配以及在IBM AIX和z/OS这些平台上部署Java应用。
+
+ 
+
+6.5      Azul VM / BEA Liquid VM
+我们平时所提及的“高性能Java虚拟机”一般是指HotSpot、JRockit、J9这类在通用平台上运行的商用虚拟机，但其实Azul VM和BEA Liquid VM这类特定硬件平台专有的虚拟机才是“高性能”的武器。
+
+Azul VM是Azul Systems 公司在HotSpot基础上进行大量改进，运行于Azul Systems公司的专有硬件Vega系统上的Java虚拟机，每个Azul VM实例都可以管理至少数十个CPU和数百GB内存的硬件资源，并提供在巨大内存范围内实现可控的GC时间的垃圾收集器、为专有硬件优化的线程调度等优秀特性。在2010年，Azul Systems公司开始从硬件转向软件，发布了自己的Zing JVM，可以在通用x86平台上提供接近于Vega系统的特性。
+
+Liquid VM即是现在的JRockit VE（Virtual Edition），它是BEA公司开发的，可以直接运行在自家Hypervisor系统上的JRockit VM的虚拟化版本，Liquid VM不需要操作系统的支持，或者说它自己本身实现了一个专用操作系统的必要功能，如文件系统、网络支持等。由虚拟机越过通用操作系统直接控制硬件可以获得很多好处，如在线程调度时，不需要再进行内核态/用户态的切换等，这样可以最大限度地发挥硬件的能力，提升Java程序的执行性能。
+
+ 
+
+6.6      Apache Harmony / Google Android Dalvik VM
+这节介绍的Harmony VM和Dalvik VM只能称做“虚拟机”，而不能称做“Java虚拟机”，但是这两款虚拟机（以及所代表的技术体系）对最近几年的Java世界产生了非常大的影响和挑战，甚至有些悲观的评论家认为成熟的Java生态系统有崩溃的可能。
+
+Apache Harmony是一个Apache软件基金会旗下以Apache License协议开源的实际兼容于JDK 1.5和JDK 1.6的Java程序运行平台，这个介绍相当拗口。它包含自己的虚拟机和Java库，用户可以在上面运行Eclipse、Tomcat、Maven等常见的Java程序，但是它没有通过TCK认证，所以我们不得不用那么一长串拗口的语言来介绍它，而不能用一句“Apache的JDK”来说明。如果一个公司要宣布自己的运行平台“兼容于Java语言”，那就必须要通过TCK（Technology Compatibility Kit）的兼容性测试。Apache基金会曾要求Sun公司提供TCK的使用授权，但是一直遭到拒绝，直到Oracle公司收购了Sun公司之后，双方关系越闹越僵，最终导致Apache愤然退出JCP（Java Community Process）组织，这是目前为止Java社区最严重的一次“分裂”。
+
+在Sun将JDK开源形成OpenJDK之后，Apache Harmony开源的优势被极大地削弱，甚至连Harmony项目的最大参与者IBM公司也宣布辞去Harmony项目管理主席的职位，并参与OpenJDK项目的开发。虽然Harmony没有经过真正大规模的商业运用，但是它的许多代码（基本上是Java库部分的代码）被吸纳进IBM的JDK 7实现及Google Android SDK之中，尤其是对Android的发展起到了很大的推动作用。
+
+说到Android，这个时下最热门的移动数码设备平台在最近几年间的发展过程中所取得的成果已经远远超越了Java ME在过去十多年所获得的成果，Android让Java语言真正走进了移动数码设备领域，只是走的并非Sun公司原本想象的那一条路。
+
+Dalvik VM是Android平台的核心组成部分之一，它的名字来源于冰岛一个名为Dalvik的小渔村。Dalvik VM并不是一个Java虚拟机，它没有遵循Java虚拟机规范，不能直接执行Java的Class文件，使用的是寄存器架构而不是JVM中常见的栈架构。但是它与Java又有着千丝万缕的联系，它执行的dex（Dalvik Executable）文件可以通过Class文件转化而来，使用Java语法编写应用程序，可以直接使用大部分的Java API等。目前Dalvik VM随着Android一起处于迅猛发展阶段，在Android 2.2中已提供即时编译器实现，在执行性能上有了很大的提高。
+
+6.7      Microsoft JVM及其他
+微软公司曾经是Java技术的铁杆支持者（也必须承认，与Sun公司争夺Java的控制权，令Java从跨平台技术变为绑定在Windows上的技术是微软公司的主要目的）。在Java语言诞生的初期（1996年～1998年，以JDK 1.2发布为分界），它的主要应用之一是在浏览器中运行Java Applets程序，微软公司为了在IE3中支持Java Applets应用而开发了自己的Java虚拟机，虽然这款虚拟机只有Windows平台的版本，却是当时Windows下性能最好的Java虚拟机，它在1997年和1998年连续两年获得了《PC Magazine》杂志的“编辑选择奖”。但好景不长，在1997年10月，Sun公司正式以侵犯商标、不正当竞争等罪名控告微软公司，在随后对微软公司的垄断调查之中，这款虚拟机也曾作为证据之一被呈送法庭。这场官司的结果是微软公司赔偿2000万美金给Sun公司（最终微软公司因垄断赔偿给Sun公司的总金额高达10亿美元），承诺终止其Java虚拟机的发展，并逐步在产品中移除Java虚拟机相关功能。具有讽刺意味的是，到最后在Windows XP SP3中Java虚拟机被完全抹去的时候，Sun公司却又到处登报希望微软公司不要这样做。Windows XP高级产品经理Jim Cullinan称：“我们花费了3年的时间和Sun打官司，当时他们试图阻止我们在Windows中支持Java，现在我们这样做了，可他们又在抱怨，这太具有讽刺意味了。”
+
+我们试想一下，如果当年Sun公司没有起诉微软公司，微软公司继续保持着对Java技术的热情，那Java的世界会变得怎么样呢？.NET技术是否会发展起来？但历史是没有假设的。其他在本节中没有介绍到的Java虚拟机还有（当然，应该还有很多笔者所不知道的）：
+
+JamVM。
+
+cacaovm。
+
+SableVM。
+
+Kaffe。
+
+Jelatine JVM。
+
+NanoVM。
+
+MRP。
+
+Moxie JVM。
+
+Jikes RVM。
