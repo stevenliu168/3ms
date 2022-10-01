@@ -1,0 +1,561 @@
+【重构】消除switch-case语句之subclass方法
+日期：2012-09-21 00:32浏览：425评论：1
+在我们的工具中有这么一个函数：
+
+bool DecodeMsxCDR(unsigned char* pCDR, unsigned int nCdrLen)
+{
+ if (NULL == pCDR || 0 == nCdrLen)
+ {
+  return false;
+ }
+
+ ++g_ucdrcount; //全局变量，表示话单的张数
+ 
+ unsigned int nTLen = 0;
+ unsigned int nLLen = 0;
+ unsigned int nVLen = 0;
+ int nport = 0;
+ char pszTag2[20] = {0};
+ char *pszTag = pszTag2;
+
+ char szFieldValue[ARRAY_LEN] = {0};
+ BYTE szSecondValue[ARRAY_LEN] = {0};
+ unsigned int nSecondLen = 0;
+ unsigned int nReadLen = 0;
+ unsigned int nReadLenALL = 0;
+
+ string strNCR;
+ string strASTime;
+ 
+ pairASTNCR strASTNCRtmp;
+
+ bool basw = false;
+ bool bncr = false;
+
+ //外层循环读取话单头的TLV，其Value内部由各个具体字段的TLV结构组成，由内层循环处理
+ while (nCdrLen - nReadLenALL > 0)
+ {
+  GetTag(pCDR + nReadLen, pszTag, nTLen);
+  nVLen = GetLength(pCDR + nReadLen + nTLen, nLLen);
+  nReadLenALL += nTLen + nLLen + nVLen;
+
+  nSecondLen = nVLen;
+  memset(szSecondValue, 0, ARRAY_LEN);
+  memcpy(szSecondValue, pCDR + nReadLenALL - nVLen, nVLen); 
+  nReadLen = 0;
+  while (nSecondLen - nReadLen > 0)
+  {
+  
+   GetTag(szSecondValue + nReadLen, pszTag, nTLen);
+   nVLen = GetLength(szSecondValue + nReadLen + nTLen, nLLen);
+ 
+   nReadLen += (nTLen + nLLen + nVLen);
+  
+   memset(szFieldValue, 0, ARRAY_LEN);
+   memcpy(szFieldValue, szSecondValue + nReadLen - nVLen, nVLen);
+  
+   //由于不同类型的话单的answerTime和networkCallReference字段的tag值不同，需要
+   //先通过billtype（其Tag值为80），根据其值，区分不同类型的话单
+   if (!strncmp(pszTag, "80", 2))
+   {
+    nport = GetPort(*szFieldValue);
+   }
+  
+   //根据话单类型，获取answerTime和networkCallReference字段值
+   switch(nport)
+   {
+   case 1:
+    if (!strncmp(pszTag, "97", 2))
+    {
+    
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    }
+    else if (!strncmp(pszTag, "9f26", 4))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    }
+   
+    //若两个字段都已经找到
+    if (basw && bncr)
+    {
+     if ( -1 == InMap(g_mapASTNCRMOC, strASTNCRtmp, g_strASTNCRMOClast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+
+     g_strASTNCRMOClast = strASTNCRtmp;
+     return true;
+    }
+    break;
+
+   case 2:
+    if (!strncmp(pszTag, "94", 2))
+    {
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    }
+    else if (!strncmp(pszTag, "9f21", 4))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    }
+    if (basw && bncr)
+    {
+     if (-1 == InMap(g_mapASTNCRMTC, strASTNCRtmp, g_strASTNCRMTClast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+    
+     g_strASTNCRMTClast = strASTNCRtmp;
+     return true;
+    }
+    break;
+   
+   case 3:
+    if(!strncmp(pszTag,"8d",2))
+    {
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    }
+    else if(!strncmp(pszTag,"96",2))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    }
+    if (basw && bncr)
+    {
+     if (-1 == InMap(g_mapASTNCRROM, strASTNCRtmp, g_strASTNCRROMlast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+    
+     g_strASTNCRROMlast = strASTNCRtmp;
+     return true;
+    }
+    break;
+   case 4:
+    if(!strncmp(pszTag,"87",2))
+    {
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    }
+    else if(!strncmp(pszTag,"9f8148",6))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    
+    }
+    if (basw && bncr)
+    {
+     if (-1 == InMap(g_mapASTNCRTCM, strASTNCRtmp, g_strASTNCRTCMlast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+    
+     g_strASTNCRTCMlast = strASTNCRtmp;
+     return true;
+    }
+    break;
+   case 5:
+    if(!strncmp(pszTag,"87",2))
+    {
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    
+    }
+    else if(!strncmp(pszTag,"9f8148",6))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    }
+    if (basw && bncr)
+    {
+     if (-1 == InMap(g_mapASTNCRING, strASTNCRtmp, g_strASTNCRINGlast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+    
+     g_strASTNCRINGlast = strASTNCRtmp;
+     return true;
+    }
+    break;
+   case 6:
+    if(!strncmp(pszTag,"88",2))
+    {
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    
+    }
+    else if(!strncmp(pszTag,"9f8148",6))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    }
+    if (basw && bncr)
+    {
+     if (-1 == InMap(g_mapASTNCROTG, strASTNCRtmp, g_strASTNCROTGlast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+    
+     g_strASTNCROTGlast = strASTNCRtmp;
+     return true;
+    }
+    break;
+   case 7:
+    if(!strncmp(pszTag,"91",2))
+    {
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    
+    }
+    else if(!strncmp(pszTag,"88",2))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    }
+    if (basw && bncr)
+    {
+     if (-1 == InMap(g_mapASTNCRTSC, strASTNCRtmp, g_strASTNCRTSClast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+    
+     g_strASTNCRTSClast = strASTNCRtmp;
+     return true;
+    }
+    break;
+   case 8:
+    if(!strncmp(pszTag,"97",2))
+    {
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    
+    }
+    else if(!strncmp(pszTag,"9f26",4))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    }
+    if (basw && bncr)
+    {
+     if (-1 == InMap(g_mapASTNCRSOC, strASTNCRtmp, g_strASTNCRSOClast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+    
+     g_strASTNCRSOClast = strASTNCRtmp;
+     return true;
+    }
+    break;
+   case 9:
+    if(!strncmp(pszTag,"94",2))
+    {
+     basw = true;
+     strASTime.insert(0, szFieldValue, nVLen);
+     answerTime(strASTNCRtmp, strASTime);
+    
+    }
+    else if(!strncmp(pszTag,"9f21",4))
+    {
+     bncr = true;
+     strNCR.insert(0, szFieldValue, nVLen);
+     PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+    }
+    if (basw && bncr)
+    {
+     if (-1 == InMap(g_mapASTNCRSTC, strASTNCRtmp, g_strASTNCRSTClast))
+     {
+      PrintSecondCDR(pCDR, nCdrLen);
+      return FALSE;
+     }
+    
+     g_strASTNCRSTClast = strASTNCRtmp;
+     return true;
+    }
+    break;
+
+   default:
+    break;
+   }
+  
+  }
+
+ }
+ return true;
+}
+
+
+从上面的函数可以看出来，圈复杂度相当高，为61，那有什么办法可以消除这个圈复杂度
+
+今天就介绍C++的一种常用办法: 通过子类化来替换typecode(也就是case的判断值)
+
+第一步：创建一个抽象基类
+class IDecoder
+{
+public:
+    void DecodeSpecifiedField() = 0;
+}
+
+第二步：根据case语句来创建子类
+从case语句来看，我们假设包括MOC，MTC，GWI等话单
+class MOCDecoder : public IDecoder
+{
+public:
+    void DecodeSpecifiedField()
+    {
+        if (!strncmp(pszTag, "97", 2))
+        {
+        
+         basw = true;
+         strASTime.insert(0, szFieldValue, nVLen);
+         answerTime(strASTNCRtmp, strASTime);
+        }
+        else if (!strncmp(pszTag, "9f26", 4))
+        {
+         bncr = true;
+         strNCR.insert(0, szFieldValue, nVLen);
+         PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+        }
+       
+        //若两个字段都已经找到
+        if (basw && bncr)
+        {
+         if ( -1 == InMap(g_mapASTNCRMOC, strASTNCRtmp, g_strASTNCRMOClast))
+         {
+          PrintSecondCDR(pCDR, nCdrLen);
+          return FALSE;
+         }
+   
+         g_strASTNCRMOClast = strASTNCRtmp;
+         return true;
+        }
+    }
+}
+
+class MTCDecoder : public IDecoder;
+class GWIDecoder : public IDecoder;
+....
+
+这个时候DecodeMsxCDR函数就变成了如下的部分
+
+bool DecodeMsxCDR(unsigned char* pCDR, unsigned int nCdrLen)
+{
+ //...
+
+ //外层循环读取话单头的TLV，其Value内部由各个具体字段的TLV结构组成，由内层循环处理
+ while (nCdrLen - nReadLenALL > 0)
+ {
+  //..
+  while (nSecondLen - nReadLen > 0)
+  {
+  
+   //...
+  
+   IDecoder* pDecoder = NULL;
+  
+   //根据话单类型，获取answerTime和networkCallReference字段值
+   switch(nport)
+   {
+   case 1:
+    pDecoder = new MOCDecoder;
+    break;
+   case 2:
+    pDecoder = new MTCDecoder;
+    break;
+   
+   case 3:
+    pDecoder = new GWIDecoder;
+    break;
+   case 4:
+    pDecoder = new GWODecoder;
+    break;
+   ......
+
+   default:
+    break;
+   }
+  
+   pDecoder->DecodeSpecifiedField();
+  
+  }
+
+ }
+ return true;
+}
+
+但是还是觉得switch case放在这里不好，那么继续优化：
+将IDecoder提供一个CreateInstance方法，当做工厂方法
+class IDecoder
+{
+public:
+    void DecodeSpecifiedField() = 0;
+    static IDecoder* CreateInstance(const int iTypeCode)
+    {
+      IDecoder* pDecoder = NULL;
+       switch(iTypeCode)
+       {
+       case 1:
+        pDecoder = new MOCDecoder;
+        break;
+       case 2:
+        pDecoder = new MTCDecoder;
+        break;
+       
+       case 3:
+        pDecoder = new GWIDecoder;
+        break;
+       case 4:
+        pDecoder = new GWODecoder;
+        break;
+       ......
+   
+       default:
+        break;
+       }
+      
+       return pDecoder;
+    }
+}
+
+这样的话，DecodeMsxCDR函数就变成了如下的部分
+
+bool DecodeMsxCDR(unsigned char* pCDR, unsigned int nCdrLen)
+{
+ //...
+
+ //外层循环读取话单头的TLV，其Value内部由各个具体字段的TLV结构组成，由内层循环处理
+ while (nCdrLen - nReadLenALL > 0)
+ {
+  //..
+  while (nSecondLen - nReadLen > 0)
+  {
+  
+   //...
+  
+   IDecoder* pDecoder = IDecoder::CreateInstance(nport);
+   if (pDecoder)
+   {
+      pDecoder->DecodeSpecifiedField();
+   }
+  
+  }
+
+ }
+ return true;
+}
+
+这个时候好像就已经完美了，DecodeMsxCDR的圈复杂度已经很小了。
+但是对于那个继承体系，在这个例子中还可以做更进一步的优化，就是消除惰性子类。
+我们可以看出来每个case语句里面就只有两个字符串不一样，代表两个字段的Tag值，那么只需要将这两个字符串作为基类的成员变量，就可以消除子类了。
+class Decoder
+{
+public:
+    Decoder(const char* pA, const char* pB)
+    {
+        //对m_pTagA和m_pTagB赋值
+    }
+    void DecodeSpecifiedField()
+    {
+        if(!strncmp(pszTag,m_pTagA,2))
+        {
+         basw = true;
+         strASTime.insert(0, szFieldValue, nVLen);
+         answerTime(strASTNCRtmp, strASTime);
+        }
+        else if(!strncmp(pszTag,m_pTagB,2))
+        {
+         bncr = true;
+         strNCR.insert(0, szFieldValue, nVLen);
+         PrintNCR(strASTNCRtmp.first, strNCR, nVLen);
+        }
+        if (basw && bncr)
+        {
+         if (-1 == InMap(g_mapASTNCRROM, strASTNCRtmp, g_strASTNCRROMlast))
+         {
+          PrintSecondCDR(pCDR, nCdrLen);
+          return FALSE;
+         }
+        
+         g_strASTNCRROMlast = strASTNCRtmp;
+    }
+   
+    static Decoder* CreateInstance(const int iTypeCode)
+    {
+      Decoder* pDecoder = NULL;
+       switch(iTypeCode)
+       {
+       case 1:
+        pDecoder = new Decoder("97", "9f12");
+        break;
+       case 2:
+        pDecoder = new Decoder("98", "9f14");
+        break;
+       
+       case 3:
+        pDecoder = new Decoder("99", "9f15");
+        break;
+       case 4:
+        pDecoder = new Decoder("93", "9f13");
+        break;
+       ......
+   
+       default:
+        break;
+       }
+      
+       return pDecoder;
+    }
+   
+private：
+    char * m_pTagA;
+    char * m_pTagB;
+}
+
+*注：上面的代码仅仅是介绍重构和面向对象的思想，很多代码细节不予考虑
+
+这样话的所有的子类MOCDecoder等都可以消除，是不是体现了面向对象编程的卓越性，可扩展性和可维护性
+但是带来的后果就是类的膨胀
+
+ 
+
+记住一点：设计模式虽好，但不要贪杯啊。小心走火入魔！！
+
+ 
+
+提出两个问题：
+1. 到底是传统的C语言方式好，还是这种OO编程思想好
+   尤其是性能和这种多态体系怎么抉择
+2. 如果switch-case语句中的typecode在某个周期内是可变的，那么应该怎么重构最好。
+   举一个简单的例子，某个公司的职工分为14, 15, 16, 17, 18...多个等级，每个等级的员工
+   分发奖金的规则是不一样的，那么如果用switch-case来写一个发奖金的函数也会很复杂，写这么  一个高扩展性的代码，大家可以想想。
+
+ 
+
+大家如果对重构很有兴趣的话，推荐阅读《重构：改善既有代码的设计》和设计模式，面向对象方面的书

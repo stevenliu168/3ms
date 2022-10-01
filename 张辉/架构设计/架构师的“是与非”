@@ -1,0 +1,159 @@
+架构师的“是与非”
+1      架构师关注的”架构“仅仅是组件架构吗
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/111.jpg
+
+其实架构的定义有很多，这一次从上面的图来看什么是一个架构：
+
+架构是属于某个系统（这个系统是为了解决利益相关者stakeholder（客户，产品经理，工程师，项目经理，测试人员，运维人员）的相关需求），架构是由一些架构元素已经相互之间的关系组成的，架构有一个架构文档来描述视角和解决stakeholder的关注点
+
+我们也可以看一下华为公司对于架构的定义
+
+架构主要表述了契合一个环境的系统的基本元素及元素之间关系构成的结构集，在环境中体现出来的基本属性，以及设计与演进的原则。
+
+      
+
+架构包括三个部分：
+
+（1）组成系统的基本元素、元素之间关系构成的结构集
+
+（2）基本属性
+
+（3）设计与演进原则 
+
+http://3ms.huawei.com/hi/showimage-1427198449-40602-20151126072501311001m989.jpg
+
+那么架构师的职责就是要找到所有的利益相关者，和他们进行沟通，找到他们的关注点和痛点问题，并通过架构来解决这些问题。所以这里对于架构师的一个要求就是不要遗漏任何利益相关者，从最前端的客户到最后端的运维人员，都需要进行有效地沟通。所以，架构师不能仅仅研究架构的元素和元素之间关系，更重要的是和架构发生关系的所有利益者
+
+另外一点，架构师还需要关注非功能性需求
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/112.jpg
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/113.jpg
+
+Architecture represents the significant design decisions that shape a system, where significant is measured by cost of change.
+
+-----------Grady Booch
+
+架构的目标是用于管理复杂性、易变性和不确定性，以确保在长期的系统演化过程中，一部分架构的变化不会对架构的其它部分产生不必要的负面影响。这样做可以确保业务和研发效率的敏捷，让应用的易变部分能够频繁地变化，对应用的其它部分的影响尽可能的小。
+
+比如现在华为很多遗留系统， 都是高耦合的系统，腐朽的架构像手铐一样牢牢地限制住业务，升级替换成本非常巨大， 新业务的开发工作量非常巨大，都不敢随便修改老的业务，就怕破坏以前的功能，改动之前还需要通过SE的评审，这样导致架构的维护成本相当大。
+
+所以这里对于架构师的要求是追求系统的”简洁性，可维护性，扩展性”。
+
+2      架构师需要关注组织文化和结构吗
+康威定律：“设计系统的组织,最终产生的设计等同于组织之内、之间的沟通结构“
+
+在这篇博文里面详细解释了正反康威定律：http://3ms.huawei.com/hi/blog/40602_2000005.html?h=h
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/125.jpghttp://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/126.jpg
+
+组织结构和软件架构之间有映射关系的：
+
+如果你的组织结构不支持，那么很难开发出高效的软件架构，比如集中式和严格分工的组织结构是很难推行微服务架构的，必须推行特性团队。
+
+如果作为一个架构师，不理会康威定律，设计软件架构的时候不考虑当前组织结构，人员能力要求，组织文化等，那么这个组织可能开发不出来当初设计的系统，也不好根据架构师的要求来调整组织架构。
+
+所以这里对于架构师有一个要求：不要只考虑技术层面，对于组织架构和人员能力的要求也需要考虑的，要通过Inverse Conway Maneuver来调整组织架构，最后保证软件架构的实施。
+
+3      架构师需要具备哪些软技能
+
+
+很多软件架构师具有专业的技术技能，但是他们总是达到所谓的”技术天花板“，其实这些人都是缺少软技能而已。
+
+常见的软技能包括上图中的关系技能，个人技能和商务技能。这个也是架构师在硬技能之外应该重点掌握的。
+
+还推荐一下《97 Things Every Software Architect Should Know: Collective Wisdom from the Experts》，可以提升一下架构师的技能水平。
+
+所以这里对于架构师的一点要求就是不仅仅要具备硬技能，软技能更重要，并且软技能更难获得。
+
+4      架构师需要编写代码吗
+架构师需要写代码，从几点来说明。
+
+l  架构是具有迭代性和演进性的
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/114.jpg
+
+很多架构都是原型开发->测试->调整架构->开发，这一次一次的迭代来进行的，所以架构师最好是进行编写代码+测试，如果仅仅是交付一个所谓的业务文档给开发人员，其实是不负责的。另外架构师总是理想主义者，很多时候都忽略了实际环境问题，也没有想过架构该如何慢慢演进，这样导致产品最后的架构是缺少竞争力的，甚至不满足市场诉求。
+
+l  某些架构是与具体的软硬件环境关联的
+
+很多架构是基于某些语言或者开发框架上面进行的，不同的语言或者开发框架对于系统架构是有影响的，如果架构师不去尝试原型验证，编写代码，仅仅网上查阅点资料就进行架构设计，那么开发团队一定是很痛苦的。
+
+l  好的架构源于不停地衍变，而非设计
+
+比如现在很流行的两个概念：MVP（Minimum Viable Product）和Over Engineering。
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/115.jpghttp://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/116.jpg
+
+架构师很容易过度设计，完美主义者，将系统设计过于庞大，将所有的需求点都进行实现，其实这个不满足快速敏捷迭代的诉求，也可能最后交付的东西不满足客户的诉求。
+
+那么现在最好的方式就是最小可用产品模式(MVP)，做出客户需要的最小功能集，然后快速上线使用，快速反馈，继续迭代增加需求，最终完成客户的要求，减少项目失败和返工的成本和风险。
+
+所以架构师需要一定编码来保证架构的正常演进和交付。
+
+当然，架构师编码也不要陷入细节当中，应该从大局观着手，引导这个系统架构的演进。
+
+5      架构师到底是业务架构师还是技术架构师
+架构一定要基于业务场景。在牛逼的架构设计，如果无法在业务场景中落地实施，那么这个架构就是空谈。架构要服务于业务，针对不同的业务场景架构设计也会不同，架构设计不必追求高大上，简而美的架构，若能满足业务发展需求，便是好架构。“没有最好的架构，只有最合适的架构“
+
+好的架构不完全是设计出来的，随着业务量，请求量的增加，好的架构是逐步演化出来的。架构师需要分析业务并具备较强的抽象能力，能够结合业务场景，设计合适的架构满足业务需要，做到架构设计既不保守，又不过度设计。
+
+还有一点，有些架构师过于“业务化“，设计出来的架构完全是为了业务实现，而没有考虑软硬件本身的实现限制，这样也是不行的，这样的设计很容易在实现的时候出现各种系统约束，最后可能导致方案不停地变更。
+
+所以对于架构师的要求是业务架构和软件技术架构相融合的，在各个方面都有一定的广度和深度。
+
+6      架构师如何面对微服务架构和Devops转型
+6.1      微服务架构
+什么是微服务架构大家应该都很了解了，不管是业界还是华为公司，这一年都炒的相当火热：
+
+
+
+微服务的好处大家应该都很清楚了（边界解耦性，独立性，技术多样性），但是对于架构师来说，要认清楚一点：微服务架构不是传说中的银弹。
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/124.jpg
+
+微服务不是一个理论，仅仅是一个SOA的优秀实践。微服务关注的不是技术本身，团队和组织结构可能对于微服务更重要。
+
+微服务架构的成本还是很高的，分布式系统的复杂度，运维成本高，测试要求高，服务的依赖治理和版本管理的要求是很高的，所以一个团队是否需要使用微服务，架构师是需要重点抉择。
+
+6.2      Devops转型之路
+参见：http://itrevolution.com/the-three-ways-principles-underpinning-devops/ 
+
+6.2.1        第一步：系统思维
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/117.jpg
+
+开发驱动的组织机体，其能力不是制作软件，而是持续的交付客户价值，架构师需要有全局视角和系统思维（System Thinking），深入理解整个价值交付链，从业务需求、研发、测试、集成，到部署运维，这条价值链的效率并不依赖于单个或者几个环节，局部优化的结果往往是全局受损，架构师要站在系统高度去优化整个价值交付链，让企业和客户之间形成快速和高效的价值传递。
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/118.jpg
+
+6.2.2        第二步：强化反馈环
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/119.jpg
+
+任何过程改进的目标都是加强和缩短反馈环。
+
+可以去了解MDD（度量驱动开发）的相关介绍
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/122.jpg
+
+这点是最难的，一般和企业人才密度有关。工具，技术，流程只是一个公司的冰山浮出水面的部分，而真正对企业效能影响大的则是冰山水下的部分，即企业的人和文化，架构师作为技术和架构的布道者，有责任义务鼓励和推动试错文化。
+
+对于Devops的实施，架构师深入理解上面的三条道路，关注持续交付的效率，关注快速反馈闭环，鼓励试错的文化。下面这个图应该就是架构师的追求：
+
+http://cdn2.infoqstatic.com/statics_s1_20160405-0343u2/resource/articles/every-architect-should-study-conway-law/zh/resources/123.jpg
+
+7      总结
+从上面总结一下对于架构师的一些要求：
+
+l  架构师要理解架构的本质，关注各个维度的利益相关者和非功能需求。
+l  架构师要理解正反康威定律，要把握组织结构和软件架构之间的关系。
+l  架构师要具备一定的软技能
+l  架构师要编写代码，了解架构的演进
+l  架构师要结合业务和技术，脱离业务的架构师都不是好的架构师
+l  架构师对于新型微服务架构要保持清醒客观的认识，对于Devops的转型要最终的目标和步骤
+ 
+
+所以，你是不是一个好的架构师，从上面这些要求就可以判定出来。
+
+ 
+
+最后，关于架构师该如何提升自己，就是开发的心态，强硬的技术技能基础，提升魅力的软技能 + 项目实践。
